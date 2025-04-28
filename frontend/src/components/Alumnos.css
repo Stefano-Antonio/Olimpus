@@ -1,0 +1,217 @@
+.header {
+    background-color: #012a4a; /* Azul más profundo */
+    color: #fefefe;
+    padding: 10px;
+    text-align: center;
+}
+  
+.search-bar {
+    width: 100%;
+    max-width: 800px;
+    padding: 10px;
+    margin-bottom: 20px;
+    font-size: 16px;
+    box-sizing: border-box;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+}
+
+.header img {
+    width: 60px;
+    vertical-align: middle;
+    margin-right: 18px;
+}
+  
+.header h1 {
+    display: inline-block;
+    color: #f4a261; /* Naranja dorado */
+    margin: 0;
+    font-size: 26px;
+    vertical-align: middle;
+}
+  
+.header h2 {
+    margin: 0;
+    color: #fefefe;
+    font-size: 22px;
+    font-weight: 400;
+}
+  
+.alumno-container {
+    flex: 1;
+    padding: 20px;
+    text-align: center;
+    background-color: #f9f9f9; /* Fondo muy claro */
+    position: relative;
+}
+  
+h3, h4 {
+    color: #000000; /* Azul fuerte */
+}
+  
+.info {
+    text-align: left;
+    margin-bottom: 20px;
+    font-weight: bold;
+    color: #333; /* Gris oscuro */
+}
+
+.alumno-scrollable-table {
+    max-height: none; /* Permite que la tabla crezca verticalmente */
+    overflow-y: auto; /* Mantén el desplazamiento vertical si es necesario */
+    overflow-x: auto; /* Mantén el desplazamiento horizontal si es necesario */
+}
+  
+.alumnos-table {
+    width: 100%; /* Asegura que ocupe todo el ancho disponible */
+    max-width: none; /* Permite que la tabla crezca sin restricciones */
+    margin: 0 auto; /* Centra la tabla horizontalmente */
+    border-collapse: collapse;
+    background-color: #f9f9f9; /* Fondo claro */
+    margin-bottom: 100px;
+    text-align: left;
+}
+  
+.alumnos-table, th, td {
+    border: 1px solid #ccc;
+}
+  
+.alumnos-table th, td {
+    padding: 15px; /* Aumenta el espacio interno de las celdas */
+    text-align: center;
+    font-size: 16px; /* Ajusta el tamaño de la fuente */
+}
+
+
+.alumnos-table th {
+    background-color: #00223b; /* Azul fuerte */
+    color: #ffffff;
+}
+  
+.action-buttons {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 5px;
+}
+
+.close-session {
+    float: right;
+    margin-top: -30px;
+    background-color: #fefefe;
+    padding: 5px 10px;
+    border-radius: 5px;
+    color: #d62828; /* Rojo suave */
+    font-weight: bold;
+    cursor: pointer;
+    text-decoration: none;
+}
+  
+.close-session:hover {
+    background-color: #e0e0e0;
+}
+  
+.icon-button {
+
+    background-color:  #0a1636;
+    border: none;
+    cursor: pointer;
+}
+  
+.icon-button svg {
+    width: 20px;
+    height: 20px;
+}
+  
+.add-delete-buttons {
+    margin-top: 20px;
+    display: flex;
+    justify-content: space-between;
+}
+  
+.add-delete-buttons button {
+    background-color: #014f86;
+    color: #ffffff;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
+  
+.add-delete-buttons button:hover {
+    background-color: #013a63;
+}
+  
+.logout-button:hover {
+    background-color: #d32f2f;
+}
+  
+.status-icon {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+}
+
+.yellow {
+    background-color: #ffcc00; /* Amarillo más fuerte */
+}
+
+.gray {
+    background-color: #999999;
+}
+
+.green {
+    background-color: #2a9d8f; /* Verde más fresco */
+}
+  
+.modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+  
+.modal-content {
+    background: #ffffff;
+    padding: 20px;
+    border-radius: 10px;
+    text-align: center;
+}
+
+/* Alumnos.css */
+.pago-pendiente {
+    color: #d32f2f;
+    font-weight: bold;
+    margin-right: 10px;
+  }
+  
+  .sin-pago {
+    color: #388e3c;
+  }
+  
+  .pagar-button {
+    background-color: #4caf50;
+    color: white;
+    border: none;
+    padding: 5px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+  }
+  
+  .pagar-button:hover {
+    background-color: #388e3c;
+  }
+  
+  
+  .modal-content input[type="number"] {
+    padding: 8px;
+    margin: 10px 0;
+    width: 100%;
+    box-sizing: border-box;
+  }
