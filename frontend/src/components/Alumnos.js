@@ -193,17 +193,15 @@ return (
                                     <td>{alumno.deuda_total}</td>
 
                                     <td>
-                                        {alumno.pago_pendiente > 0 && (
-                                            <button
-                                                className="icon-button"
-                                                onClick={() => {
-                                                    setAlumnoSeleccionado(alumno);
-                                                    setMostrarPagoModal(true);
-                                                }}
-                                            >
-                                                Registrar Pago
-                                            </button>
-                                        )}
+                                        <button
+                                            className="icon-button"
+                                            onClick={() => {
+                                                setAlumnoSeleccionado(alumno);
+                                                setMostrarPagoModal(true);
+                                            }}
+                                        >
+                                            Registrar Pago
+                                        </button>
                                         <button className="icon-button" onClick={() => setModal(alumno._id)}>
                                             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="red" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                                 <polyline points="3 6 5 6 21 6"></polyline>
@@ -253,13 +251,15 @@ return (
                                 setAlumnoSeleccionado((prev) => ({
                                     ...prev,
                                     mesesAPagar: meses,
-                                    costoPorMes,
+                                    costoPorMes: alumnoSeleccionado?.deuda_total > 0 
+                                        ? costoPorMes 
+                                        : modalidades.find(m => m._id === alumnoSeleccionado?.id_modalidad)?.costo || 0,
                                 }));
                             }}
                         >
                             <option value="">Seleccione meses</option>
-                            <option value="12">Anualidad</option>
-                            {Array.from({ length: alumnoSeleccionado?.pago_pendiente || 0 }, (_, i) => i + 1).map((mes) => (
+                            <option value="11">Anualidad</option>
+                            {Array.from({ length: Math.max(alumnoSeleccionado?.pago_pendiente || 0, 12) }, (_, i) => i + 1).map((mes) => (
                                 <option key={mes} value={mes}>
                                     {mes} {mes === 1 ? "mes" : "meses"}
                                 </option>
