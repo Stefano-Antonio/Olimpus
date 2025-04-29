@@ -135,11 +135,11 @@ return (
                   ) : (
                     <>
                       <option value="16:00-17:00">4:00pm-5:00pm</option>
-                      <option value="18:00-19:00">4:00pm-6:00pm</option>
+                      <option value="16:00-18:00">4:00pm-6:00pm</option>
                       <option value="17:00-18:00">5:00pm-6:00pm</option>
-                      <option value="17:00-18:00">5:00pm-7:00pm</option>
+                      <option value="17:00-19:00">5:00pm-7:00pm</option>
                       <option value="18:00-19:00">6:00pm-7:00pm</option>
-                      <option value="18:00-19:00">6:00pm-8:00pm</option>
+                      <option value="18:00-20:00">6:00pm-8:00pm</option>
                       <option value="19:00-20:00">7:00pm-8:00pm</option>
                     </>
                   )}

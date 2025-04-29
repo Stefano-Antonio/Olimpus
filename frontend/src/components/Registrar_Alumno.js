@@ -22,13 +22,6 @@ function Registrar_Alumno() {
     telefono: "",
   });
   const [tipoPago, setTipoPago] = useState(""); // Nuevo estado para saber qué tipo de pago se eligió
-  const [datosTarjeta, setDatosTarjeta] = useState({
-    nombre: "",
-    numero: "",
-    vencimiento: "",
-    cvv: "",
-  });
-
 
   
   // Obtener la lista de modalidades desde la API
