@@ -88,6 +88,34 @@ useEffect(() => {
     }
   };
 
+const handleModalidadChange = async (alumnoId, nuevaModalidadId) => {
+    try {
+        const selectedModalidad = modalidades.find(m => m._id === nuevaModalidadId);
+
+        if (selectedModalidad) {
+            setCostoModalidad(selectedModalidad.costo);
+
+            // Actualizar la modalidad del alumno en el servidor
+            await axios.post(`http://localhost:7000/api/modalidad/cambiarModalidad`, {
+                idAlumno: alumnoId, // Cambiado de alumnoId a idAlumno
+                idModalidad: nuevaModalidadId, // Cambiado de id_modalidad a idModalidad
+            });
+            console.log('Alumno ID:', alumnoId, 'Nueva Modalidad ID:', nuevaModalidadId);
+
+            // Actualizar la lista de alumnos después del cambio
+            await fetchData();
+
+            toast.success("Modalidad actualizada con éxito");
+        } else {
+            setCostoModalidad("");
+            toast.error("Modalidad seleccionada no válida");
+        }
+    } catch (error) {
+        console.error("Error al actualizar la modalidad:", error);
+        toast.error("Hubo un error al actualizar la modalidad");
+    }
+};
+    
   if (loading) {
     return <div className="loading">Cargando información de alumnos...</div>;
   }
@@ -185,7 +213,18 @@ return (
                                 <tr key={alumno._id}>
                                     <td>{alumno.nombre}</td>
                                     <td>{calcularEdad(alumno.fecha_nacimiento)}</td>
-                                    <td>{obtenerNombreModalidad(alumno.id_modalidad._id || alumno.id_modalidad)}</td>
+                                    <td>
+                                        <select
+                                            value={alumno.id_modalidad._id || alumno.id_modalidad}
+                                            onChange={(e) => handleModalidadChange(alumno._id, e.target.value)}
+                                        >
+                                            {modalidades.map((modalidad) => (
+                                                <option key={modalidad._id} value={modalidad._id}>
+                                                    {modalidad.nombre} - {modalidad.horarios} 
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </td>
                                     <td>{obtenerHorarioModalidad(alumno.id_modalidad._id || alumno.id_modalidad)}</td>
                                     <td>{new Date(alumno.fecha_inscripcion).toISOString().split('T')[0]}</td>
                                     <td>{alumno.pago_pendiente}</td>

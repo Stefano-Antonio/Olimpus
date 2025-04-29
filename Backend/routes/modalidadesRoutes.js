@@ -125,5 +125,27 @@ router.post('/sumarpago', async (req, res) => {
     }
 });
 
+// ruta oara cambiar la modalidad de un alumno
+router.post('/cambiarModalidad', async (req, res) => {
+    const { idAlumno, idModalidad } = req.body;
+    console.log('Datos recibidos para cambiar la modalidad:', req.body);
+
+    try {
+        // Buscar al alumno por su ID
+        const alumno = await Alumno.findById(idAlumno);
+        if (!alumno) {
+            return res.status(404).json({ message: 'Alumno no encontrado' });
+        }
+
+        // Cambiar la modalidad del alumno
+        alumno.id_modalidad = idModalidad;
+        await alumno.save();
+
+        res.status(200).json({ message: 'Modalidad cambiada exitosamente', alumno });
+    } catch (error) {
+        console.error('Error al cambiar la modalidad:', error);
+        res.status(500).json({ message: 'Error al cambiar la modalidad', error: error.message });
+    }
+});
 
 module.exports = router;

@@ -244,7 +244,9 @@ const sumarPagosRealizados = async (id, monto) => {
       <h3>Opciones de pago</h3>
       <p>¿Cómo desea registrar el pago?</p>
       {/* Aquí mostramos el costo */}
+      <p><strong>Costo de inscripción:</strong> $0</p>
       <p><strong>Costo de la modalidad:</strong> ${costoModalidad}</p>
+      <p><strong>Total a pagar:</strong> ${0 + costoModalidad}</p>
       <p><strong>Costo de la anualidad:</strong> ${costoModalidad * 11}</p>
 
       <div className="pago-opciones">
@@ -257,7 +259,7 @@ const sumarPagosRealizados = async (id, monto) => {
           }
         }}
     >
-        Confirmar Pago
+        Confirmar Pago de mensualidad
     </button>
      <button className="pago-button" onClick={async () => {
           if (window.confirm("¿Está seguro de confirmar el pago?")) {
