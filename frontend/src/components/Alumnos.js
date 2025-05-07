@@ -200,7 +200,6 @@ return (
                                 <th>Nombre</th>
                                 <th>Edad</th>
                                 <th>Modalidad</th>
-                                <th>Horario</th>
                                 <th>Fecha de inscripción</th>
                                 <th>Meses pendientes</th>
                                 <th>Meses pagados</th>
@@ -225,7 +224,6 @@ return (
                                             ))}
                                         </select>
                                     </td>
-                                    <td>{obtenerHorarioModalidad(alumno.id_modalidad._id || alumno.id_modalidad)}</td>
                                     <td>{new Date(alumno.fecha_inscripcion).toISOString().split('T')[0]}</td>
                                     <td>{alumno.pago_pendiente}</td>
                                     <td>{alumno.pagos_realizados}</td>

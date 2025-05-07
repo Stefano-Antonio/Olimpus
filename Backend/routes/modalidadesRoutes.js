@@ -125,7 +125,7 @@ router.post('/sumarpago', async (req, res) => {
     }
 });
 
-// ruta oara cambiar la modalidad de un alumno
+// ruta para cambiar la modalidad de un alumno
 router.post('/cambiarModalidad', async (req, res) => {
     const { idAlumno, idModalidad } = req.body;
     console.log('Datos recibidos para cambiar la modalidad:', req.body);
