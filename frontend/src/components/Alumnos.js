@@ -119,13 +119,16 @@ const handleModalidadChange = async (alumnoId, nuevaModalidadId) => {
   if (loading) {
     return <div className="loading">Cargando información de alumnos...</div>;
   }
+  const alumnosFiltrados = alumnos.filter(alumno => {
+    if (!alumno || !alumno.id_modalidad) return false;
 
-const alumnosFiltrados = alumnos.filter(alumno => {
-    const modalidad = obtenerNombreModalidad(alumno.id_modalidad._id || alumno.id_modalidad).toLowerCase();
-    const horario = obtenerHorarioModalidad(alumno.id_modalidad._id || alumno.id_modalidad).toLowerCase();
-    const edad = calcularEdad(alumno.fecha_nacimiento).toString();
+    const modalidadId = alumno.id_modalidad._id || alumno.id_modalidad;
+    const modalidad = obtenerNombreModalidad(modalidadId)?.toLowerCase() || "";
+    const horario = obtenerHorarioModalidad(modalidadId)?.toLowerCase() || "";
+    const edad = calcularEdad(alumno.fecha_nacimiento)?.toString() || "";
+
     return (
-        alumno.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        alumno.nombre?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         alumno.matricula?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         modalidad.includes(searchTerm.toLowerCase()) ||
         horario.includes(searchTerm.toLowerCase()) ||
@@ -200,7 +203,6 @@ return (
                                 <th>Nombre</th>
                                 <th>Edad</th>
                                 <th>Modalidad</th>
-                                <th>Horario</th>
                                 <th>Fecha de inscripción</th>
                                 <th>Meses pendientes</th>
                                 <th>Meses pagados</th>
@@ -225,7 +227,6 @@ return (
                                             ))}
                                         </select>
                                     </td>
-                                    <td>{obtenerHorarioModalidad(alumno.id_modalidad._id || alumno.id_modalidad)}</td>
                                     <td>{new Date(alumno.fecha_inscripcion).toISOString().split('T')[0]}</td>
                                     <td>{alumno.pago_pendiente}</td>
                                     <td>{alumno.pagos_realizados}</td>
