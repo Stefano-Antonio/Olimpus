@@ -5,7 +5,7 @@ const bcrypt = require('bcrypt');
 const Modalidad = require('../models/modalidades');
 const stripe = require('stripe')('tu_clave_secreta_de_stripe');
 const Alumno = require('../models/alumnos'); // Asegúrate de tener el modelo de Alumno
-
+const Pago = require('../models/pagos'); // Asegúrate de tener el modelo de Pago
 
 // Crear una nueva modalidad
 router.post('/', async (req, res) => {
@@ -96,34 +96,34 @@ router.post('/pago', async (req, res) => {
   }
 });
 
-// Ruta para sumar pagos realizados al alumno
 router.post('/sumarpago', async (req, res) => {
-    const { monto, id  } = req.body;
-    console.log('sumando pago', monto, id);
-    try {
-        // Buscar al alumno por su ID
-        const alumno = await Alumno.findById(id);
-        console.log('alumno', alumno);
-        if (!alumno) {
-            return res.status(404).json({ message: 'Alumno no encontrado' });
-            
-        console.log('Alumno no encontrado');
-        }
-
-        // Sumar el monto al total de pagos realizados
-        alumno.pagos_realizados = (alumno.pagos_realizados || 0) + monto;
-        console.log('Pagos realizados antes de guardar:', alumno.pagos_realizados);
-        // Guardar los cambios en la base de datos
-        await alumno.save();
-        console.log('alumno', alumno);
-        console.log('Pagos realizados guardados exitosamente');
-
-        res.status(200).json({ message: 'Pago sumado exitosamente', alumno });
-    } catch (error) {
-        console.error('Error al sumar el pago:', error);
-        res.status(500).json({ message: 'Error al sumar el pago', error: error.message });
+  const { monto, id, costo } = req.body;
+  try {
+    const alumno = await Alumno.findById(id);
+    if (!alumno) {
+      return res.status(404).json({ message: 'Alumno no encontrado' });
     }
+    console.log('Datos recibidos para registrar el pago:', req.body);
+    // 1. Registrar el nuevo pago
+    const nuevoPago = new Pago({
+      alumno: id,
+      costo: costo,
+      fecha: new Date() // Fecha actual
+    });
+
+    await nuevoPago.save();
+
+    // 2. Sumar el monto a los pagos realizados
+    alumno.pagos_realizados = (alumno.pagos_realizados || 0) + monto;
+    await alumno.save();
+
+    res.status(200).json({ message: 'Pago registrado y guardado con éxito', alumno });
+  } catch (error) {
+    console.error('Error al registrar el pago:', error);
+    res.status(500).json({ message: 'Error al registrar el pago', error: error.message });
+  }
 });
+
 
 // ruta para cambiar la modalidad de un alumno
 router.post('/cambiarModalidad', async (req, res) => {
@@ -148,4 +148,33 @@ router.post('/cambiarModalidad', async (req, res) => {
     }
 });
 
+// Descargar el total de los pagos del día
+router.get('/corte-dia', async (req, res) => {
+    try {
+      const hoy = new Date();
+      const inicioDelDia = new Date(hoy.setHours(0, 0, 0, 0));
+      const finDelDia = new Date(hoy.setHours(23, 59, 59, 999));
+  
+      // Obtener los pagos realizados en el día
+      const pagosDelDia = await Pago.find({
+        fecha: { $gte: inicioDelDia, $lte: finDelDia }
+      });
+  
+      // Sumar los costos de todos los pagos
+      const totalPagado = pagosDelDia.reduce((acc, pago) => acc + (pago.costo || 0), 0);
+        console.log('Total pagado del día:', totalPagado,pagosDelDia);
+      
+        // Devolver todos los pagos y el total
+        res.status(200).json({
+            totalPagado: totalPagado.toFixed(2),
+            pagos: pagosDelDia
+        });
+  
+    } catch (error) {
+      console.error('Error al generar el corte del día:', error);
+      res.status(500).json({ message: 'Error al generar el corte del día', error: error.message });
+    }
+  });
+  
+  
 module.exports = router;
