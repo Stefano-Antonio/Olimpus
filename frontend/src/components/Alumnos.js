@@ -17,6 +17,9 @@ const Alumnos = () => {
   const [costoModalidad, setCostoModalidad] = useState(""); // Inicializa con una cadena vacía
   const [alumnoSeleccionado, setAlumnoSeleccionado] = useState(null);
   const [AlumnoAEliminar, setAlumnoAEliminar] = useState(null);
+  const [fechaCorte, setFechaCorte] = useState(new Date().toISOString().split('T')[0]);
+  const [pagosCorte, setPagosCorte] = useState([]);
+  const [totalCorte, setTotalCorte] = useState(0);
   // Removed unused declaration
   const navigate = useNavigate();
 
@@ -30,6 +33,7 @@ const fetchData = async () => {
         const modalidadesResponse = await axios.get(`http://localhost:7000/api/modalidad`);
         const modalidadesData = modalidadesResponse.data;
 
+        
         setAlumnos(alumnosData);
         setModalidades(modalidadesData);
         setLoading(false);
@@ -54,6 +58,28 @@ useEffect(() => {
     return edad;
   };
 
+  const obtenerCorteDelDia = async () => {
+    try {
+        const fecha = new Date(fechaCorte);
+      const res = await axios.get(`http://localhost:7000/api/modalidad/corte-dia?fecha=${fecha.toISOString}`);
+      setPagosCorte(res.data.pagos); // Actualiza el estado con los pagos
+      setTotalCorte(res.data.totalPagado); // Actualiza el estado con el total
+    } catch (error) {
+      console.error("Error al obtener el corte:", error);
+    }
+  };
+  
+  const obtenerDetallesAlumno = async (alumnoId) => {
+    try {
+      const res = await axios.get(`http://localhost:7000/api/alumno/${alumnoId}`);
+      return res.data;
+    } catch (error) {
+      console.error("Error al obtener los detalles del alumno:", error);
+      return null;
+    }
+  };
+  
+ 
   
 
   const obtenerHorarioModalidad = (idModalidad) => {
@@ -88,21 +114,31 @@ useEffect(() => {
     }
   };
 
-const handleModalidadChange = async (alumnoId, nuevaModalidadId) => {
+  const handleModalidadChange = async (alumnoId, nuevaModalidadId) => {
     try {
+        const alumno = alumnos.find(a => a._id === alumnoId);
+
+        if (!alumno) {
+            toast.error("Alumno no encontrado");
+            return;
+        }
+
+        // 💡 Aquí se verifica que no tenga pagos pendientes
+        if (alumno.pago_pendiente > 0) {
+            toast.error("No se puede cambiar la modalidad porque el alumno tiene pagos pendientes.");
+            return;
+        }
+
         const selectedModalidad = modalidades.find(m => m._id === nuevaModalidadId);
 
         if (selectedModalidad) {
             setCostoModalidad(selectedModalidad.costo);
 
-            // Actualizar la modalidad del alumno en el servidor
             await axios.post(`http://localhost:7000/api/modalidad/cambiarModalidad`, {
-                idAlumno: alumnoId, // Cambiado de alumnoId a idAlumno
-                idModalidad: nuevaModalidadId, // Cambiado de id_modalidad a idModalidad
+                idAlumno: alumnoId,
+                idModalidad: nuevaModalidadId,
             });
-            console.log('Alumno ID:', alumnoId, 'Nueva Modalidad ID:', nuevaModalidadId);
 
-            // Actualizar la lista de alumnos después del cambio
             await fetchData();
 
             toast.success("Modalidad actualizada con éxito");
@@ -115,6 +151,7 @@ const handleModalidadChange = async (alumnoId, nuevaModalidadId) => {
         toast.error("Hubo un error al actualizar la modalidad");
     }
 };
+
     
   if (loading) {
     return <div className="loading">Cargando información de alumnos...</div>;
@@ -136,7 +173,7 @@ const handleModalidadChange = async (alumnoId, nuevaModalidadId) => {
     );
 });
 
- const handlePagoEfectivoOTransferencia = async (alumno) => {
+ const handlePagoEfectivoOTransferencia = async (alumno, costo) => {
     try {
 
         const id= alumno._id;
@@ -151,10 +188,10 @@ const handleModalidadChange = async (alumnoId, nuevaModalidadId) => {
             return;
         }
         
-        await sumarPagosRealizados(id, alumno.mesesAPagar || 1);
+        await sumarPagosRealizados(id, alumno.mesesAPagar || 1, costo);
         await fetchData(); // recargar la lista de alumnos
 
-        toast.success("Alumno registrado con éxito");
+        toast.success("Pago registrado con éxito");
         setMostrarModal(false); // Cierra el modal
     } catch (error) {
         console.error("Error al registrar el alumno:", error);
@@ -164,9 +201,9 @@ const handleModalidadChange = async (alumnoId, nuevaModalidadId) => {
 
 
 // Handle para sumar pagos realizados a la ruta
-const sumarPagosRealizados = async (id, monto) => {
+const sumarPagosRealizados = async (id, monto, costo) => {
     try {
-      await axios.post("http://localhost:7000/api/modalidad/sumarpago", { monto, id });
+      await axios.post("http://localhost:7000/api/modalidad/sumarpago", { monto, id, costo });
       console.log("Pago registrado exitosamente");
     } catch (error) {
       console.error("Error al registrar el pago:", error);
@@ -197,6 +234,47 @@ return (
 
             {alumnosFiltrados.length > 0 ? (
                 <div className="alumno-scrollable-table">
+                    <div className="corte-dia-section">
+                    <div>
+                <h4>Corte del día</h4>
+                <input
+                    type="date"
+                    value={fechaCorte}
+                    onChange={(e) => setFechaCorte(e.target.value)}
+                />
+                <button onClick={obtenerCorteDelDia}>Ver corte</button>
+
+                {totalCorte && (
+                    <p>Total pagado del día: ${totalCorte}</p>
+                )}
+
+                {pagosCorte.length > 0 ? (
+                    <div className="corte-result">
+                    <h5>Pagos registrados el {fechaCorte}</h5>
+                    <table>
+                        <thead>
+                        <tr>
+                            <th>Alumno</th>
+                            <th>Monto</th>
+                            <th>Fecha</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        {pagosCorte.map((pago) => (
+                            <tr key={pago._id}>
+                            <td>{pago.alumno?.nombre || "Desconocido"}</td>
+                            <td>${pago.costo}</td>
+                            <td>{new Date(pago.fecha).toLocaleString()}</td>
+                            </tr>
+                        ))}
+                        </tbody>
+                    </table>
+                    </div>
+                ) : (
+                    <p>No se encontraron pagos para la fecha seleccionada.</p>
+                )}
+                </div>
+                </div>
                     <table className="alumnos-table">
                         <thead>
                             <tr>
@@ -318,7 +396,8 @@ return (
                                 className="pago-button"
                                 onClick={() => {
                                     if (window.confirm("¿Está seguro de confirmar el pago?")) {
-                                        handlePagoEfectivoOTransferencia(alumnoSeleccionado);
+                                        const costo = alumnoSeleccionado?.costoPorMes * alumnoSeleccionado?.mesesAPagar;
+                                        handlePagoEfectivoOTransferencia(alumnoSeleccionado, costo);
                                         setMostrarPagoModal(false);
                                     }
                                 }}
@@ -328,12 +407,14 @@ return (
                             {alumnoSeleccionado?.mesesAPagar === 12 && (
                                 <button className="pago-button" onClick={async () => {
                                     if (id) {
-                                        await sumarPagosRealizados(id, 12);
+                                        const costo = alumnoSeleccionado?.costoPorMes * 12;
+                                        await sumarPagosRealizados(id, 12, costo);
                                         toast.success("Anualidad registrada con éxito");
                                         setMostrarPagoModal(false);
                                     } 
                                     if (window.confirm("¿Está seguro de confirmar el pago?")) {
-                                        handlePagoEfectivoOTransferencia(alumnoSeleccionado);}
+                                        const costo = alumnoSeleccionado?.costoPorMes * 12;
+                                        handlePagoEfectivoOTransferencia(alumnoSeleccionado, costo);}
                                 }}>
                                     Pago de anualidad
                                 </button>
