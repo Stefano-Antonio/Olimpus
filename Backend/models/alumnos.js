@@ -7,6 +7,7 @@ const AlumnoSchema = new Schema({
   fecha_inscripcion: { type: Date, default: Date.now, required: true },
   pago_pendiente: { type: Number, default: 0 },
   pagos_realizados: { type: Number, default: 0 },
+  deuda: { type: Number, default: 0 },
   nombre: { type: String, required: true },
   telefono: { type: String, required: true },
   correo: { type: String, required: true }
