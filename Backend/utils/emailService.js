@@ -23,8 +23,15 @@ const enviarCorreoReporte = async (archivoExcel, archivoPDF, fechaCorte, totalCo
   try {
     const transporter = createTransporter();
     
-    // Obtener la configuración del sistema para el correo destinatario
-    const destinatario = process.env.EMAIL_DESTINATARIO || 'admin@olimpusgymnastics.com';
+    // Obtener el correo destinatario desde la configuración del sistema
+    const ConfiguracionSistema = require('../models/configuracion');
+    const configuracion = await ConfiguracionSistema.obtenerConfiguracion();
+    
+    let destinatario = configuracion.emailReportes && configuracion.emailReportes.trim() 
+      ? configuracion.emailReportes.trim()
+      : process.env.EMAIL_DESTINATARIO || 'admin@olimpusgymnastics.com';
+    
+    console.log(`📧 Enviando reporte a: ${destinatario}`);
     
     const fechaFormateada = new Date(fechaCorte).toLocaleDateString('es-MX', {
       weekday: 'long',

@@ -48,6 +48,22 @@ const ConfiguracionSistemaSchema = new Schema({
     default: 'fijo'
   },
   
+  // === CONFIGURACIÓN DE REPORTES ===
+  // Email donde se enviarán los reportes automáticos
+  emailReportes: {
+    type: String,
+    default: '',
+    trim: true,
+    validate: {
+      validator: function(v) {
+        // Solo validar si el campo no está vacío
+        if (!v || v.trim() === '') return true;
+        return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
+      },
+      message: 'Debe ser un email válido'
+    }
+  },
+  
   // === METADATOS ===
   fechaActualizacion: { 
     type: Date, 
@@ -66,7 +82,8 @@ ConfiguracionSistemaSchema.statics.obtenerConfiguracion = async function() {
       costoInscripcion: 0,
       diasGraciaParaPago: 5,
       montoRecargoTardio: 50,
-      tipoRecargo: 'fijo'
+      tipoRecargo: 'fijo',
+      emailReportes: ''
     });
   }
   return config;

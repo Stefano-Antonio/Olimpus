@@ -22,7 +22,8 @@ router.put('/', async (req, res) => {
       costoInscripcion,
       diasGraciaParaPago, 
       montoRecargoTardio, 
-      tipoRecargo 
+      tipoRecargo,
+      emailReportes
     } = req.body;
     
     // Validaciones
@@ -39,7 +40,8 @@ router.put('/', async (req, res) => {
         costoInscripcion: costoInscripcion || 0,
         diasGraciaParaPago: diasGraciaParaPago || 5,
         montoRecargoTardio: montoRecargoTardio || 50,
-        tipoRecargo: tipoRecargo || 'fijo'
+        tipoRecargo: tipoRecargo || 'fijo',
+        emailReportes: emailReportes || ''
       });
     } else {
       // Actualizar configuración existente
@@ -48,6 +50,7 @@ router.put('/', async (req, res) => {
       if (diasGraciaParaPago !== undefined) config.diasGraciaParaPago = diasGraciaParaPago;
       if (montoRecargoTardio !== undefined) config.montoRecargoTardio = montoRecargoTardio;
       if (tipoRecargo !== undefined) config.tipoRecargo = tipoRecargo;
+      if (emailReportes !== undefined) config.emailReportes = emailReportes;
       config.fechaActualizacion = new Date();
     }
     
