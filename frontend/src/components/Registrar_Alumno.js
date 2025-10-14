@@ -1,3 +1,11 @@
+// =================================================================
+// COMPONENTE REGISTRAR ALUMNO - FORMULARIO DE REGISTRO
+// =================================================================
+// Formulario completo para registrar nuevos alumnos en el sistema.
+// Incluye validaciones, selección de modalidades y procesamiento de pagos.
+// FUNCIONALIDADES: registro de datos personales, asignación de modalidad,
+// cálculo automático de costos, y procesamiento de primer pago.
+
 import React, { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import axios from "axios";
@@ -8,20 +16,27 @@ import Pilares from '../assest/pilar_olimpus.jpg';
 import logo from '../assest/logo_olimpus.jpg';
 
 function Registrar_Alumno() {
+  // === HOOKS DE NAVEGACIÓN ===
   const navigate = useNavigate();
-  const [mostrarModal, setMostrarModal] = useState(false);
   const location = useLocation();
-  const [modalidades, setModalidades] = useState([]);
-  const [alumnoId, setAlumnoId] = useState(null);
-  const [costoModalidad, setCostoModalidad] = useState(""); // Inicializa con una cadena vacía
+
+  // === ESTADOS DEL COMPONENTE ===
+  // Estados para controlar modales y datos del formulario
+  const [mostrarModal, setMostrarModal] = useState(false); // Modal de opciones de pago
+  const [modalidades, setModalidades] = useState([]); // Lista de modalidades disponibles
+  const [alumnoId, setAlumnoId] = useState(null); // ID del alumno registrado
+  const [costoModalidad, setCostoModalidad] = useState(""); // Costo calculado automáticamente
+  const [tipoPago, setTipoPago] = useState(""); // Tipo de pago seleccionado
+
+  // === FORMULARIO PRINCIPAL ===
+  // Estado que mantiene todos los datos del nuevo alumno
   const [form, setForm] = useState({
-    id_modalidad: "",
-    fecha_nacimiento: "",
-    nombre: "",
-    correo: "",
-    telefono: "",
+    id_modalidad: "", // Se llena con el select de modalidades
+    fecha_nacimiento: "", // Para calcular edad
+    nombre: "", // Nombre completo (validado con regex)
+    correo: "", // Email de contacto
+    telefono: "", // Teléfono de contacto
   });
-  const [tipoPago, setTipoPago] = useState(""); // Nuevo estado para saber qué tipo de pago se eligió
 
   
   // Obtener la lista de modalidades desde la API

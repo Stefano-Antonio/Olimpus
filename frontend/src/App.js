@@ -1,28 +1,52 @@
 // filepath: c:\Users\Stefano\Documents\OLYMPUS\sistema_registros\frontend\src\App.js
+// =================================================================
+// APLICACIÓN PRINCIPAL - FRONTEND REACT
+// =================================================================
+// Punto de entrada de la aplicación React para el sistema de registro
+// de alumnos de Olimpus Gymnastics. Configura las rutas principales.
+
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import PantallaInicio from './components/Pantalla_inicio';
-import Alumnos from './components/Alumnos'; // Asegúrate de que la ruta sea correcta
-import './App.css'; // Importa el CSS global
-import Registrar_Alumno from './components/Registrar_Alumno'; // Asegúrate de que la ruta sea correcta
-import './components/Alumnos.css'; // Importa el CSS específico de Alumnos
-import './components/Pantalla_inicio.css'; // Importa el CSS específico de Pantalla Inicio
-import './components/Registrar_Alumno.css'; // Importa el CSS específico de Registrar Alumno
-import  Modalidades from './components/Modalidades.js'; // Importa el CSS específico de Registrar Alumno
+
+// === IMPORTACIÓN DE COMPONENTES PRINCIPALES ===
+import PantallaInicio from './components/Pantalla_inicio'; // Dashboard principal
+import Alumnos from './components/Alumnos'; // Lista y gestión de alumnos registrados
+import Registrar_Alumno from './components/Registrar_Alumno'; // Formulario de nuevo registro
+import Modalidades from './components/Modalidades.js'; // Gestión de clases/modalidades
+
+// === IMPORTACIÓN DE ESTILOS ===
+import './App.css'; // Estilos globales
+import './components/Alumnos.css'; // Estilos de lista de alumnos
+import './components/Pantalla_inicio.css'; // Estilos del dashboard
+import './components/Registrar_Alumno.css'; // Estilos del formulario de registro
 
 
 function App() {
     return (
         <>
-                <Router>
-                    <Routes>
-                        <Route path="/" element={<PantallaInicio />} />
-                        <Route path="/alumnos" element={<Alumnos />} />
-                        <Route path="/alumnos/nuevo" element={<Registrar_Alumno />} /> {/* Cambia esto por el componente de registro de alumnos */}
-                        <Route path="/modalidades" element={<Modalidades />} /> {/* Cambia esto por el componente de modalidades */}
-                        {/* Agrega otras rutas aquí si es necesario */}
-                    </Routes>
-                </Router>
+            <Router>
+                {/* === CONFIGURACIÓN DE RUTAS === */}
+                {/* IMPORTANTE: Todas las rutas usan React Router v6 con element prop */}
+                <Routes>
+                    {/* Dashboard principal con navegación a todas las funciones */}
+                    <Route path="/" element={<PantallaInicio />} />
+                    
+                    {/* Gestión de alumnos - Lista completa con búsqueda y pagos */}
+                    <Route path="/alumnos" element={<Alumnos />} />
+                    
+                    {/* Formulario de registro de nuevos estudiantes */}
+                    <Route path="/alumnos/nuevo" element={<Registrar_Alumno />} />
+                    
+                    {/* Gestión de modalidades/clases del gimnasio */}
+                    <Route path="/modalidades" element={<Modalidades />} />
+                    
+                    {/* NOTA PARA IA: Rutas futuras pueden incluir:
+                        - /reportes (reportes detallados)
+                        - /promociones (gestión de ofertas)
+                        - /configuracion (ajustes del sistema)
+                    */}
+                </Routes>
+            </Router>
         </>
     );
 }
