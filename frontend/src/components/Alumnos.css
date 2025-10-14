@@ -299,3 +299,63 @@ h3, h4 {
     }
   }
   
+/* Nuevos estilos para búsqueda y exportar */
+.search-and-actions {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.search-and-actions .search-bar {
+  flex: 1;
+  min-width: 300px;
+  margin-bottom: 0;
+}
+
+.btn-exportar {
+  background-color: #10b981;
+  color: white;
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 0.5rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.btn-exportar:hover {
+  background-color: #059669;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+}
+
+/* Badge para recargos */
+.recargo-badge {
+  display: inline-block;
+  background-color: #fee2e2;
+  color: #991b1b;
+  padding: 0.125rem 0.375rem;
+  border-radius: 0.25rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  margin-left: 0.25rem;
+  cursor: help;
+}
+
+/* Responsive para nuevas columnas */
+@media (max-width: 768px) {
+  .search-and-actions {
+    flex-direction: column;
+  }
+  
+  .search-and-actions .search-bar {
+    width: 100%;
+  }
+  
+  .btn-exportar {
+    width: 100%;
+  }
+}

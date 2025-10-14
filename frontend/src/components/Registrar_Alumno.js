@@ -27,6 +27,8 @@ function Registrar_Alumno() {
   const [alumnoId, setAlumnoId] = useState(null); // ID del alumno registrado
   const [costoModalidad, setCostoModalidad] = useState(""); // Costo calculado automáticamente
   const [tipoPago, setTipoPago] = useState(""); // Tipo de pago seleccionado
+  const [proximaFechaPago, setProximaFechaPago] = useState(""); // Próxima fecha de pago según configuración
+  const [diaCobroMensual, setDiaCobroMensual] = useState(5); // Día de cobro mensual configurado
 
   // === FORMULARIO PRINCIPAL ===
   // Estado que mantiene todos los datos del nuevo alumno
@@ -39,7 +41,7 @@ function Registrar_Alumno() {
   });
 
   
-  // Obtener la lista de modalidades desde la API
+  // Obtener la lista de modalidades y próxima fecha de pago desde la API
   useEffect(() => {
     const fetchModalidades = async () => {
       try {
@@ -50,7 +52,18 @@ function Registrar_Alumno() {
       }
     };
 
+    const fetchProximaFechaPago = async () => {
+      try {
+        const response = await axios.get(`http://localhost:7000/api/alumnos/proxima-fecha-pago`);
+        setProximaFechaPago(response.data.proximaFechaPago);
+        setDiaCobroMensual(response.data.diaCobroMensual);
+      } catch (error) {
+        console.error("Error al obtener próxima fecha de pago:", error);
+      }
+    };
+
     fetchModalidades();
+    fetchProximaFechaPago();
   }, []);
 
   useEffect(() => {
@@ -240,6 +253,20 @@ const sumarPagosRealizados = async (id, monto) => {
                   </select>
                 </div>
               </div>
+            
+            {/* Información de fechas de pago */}
+            {proximaFechaPago && (
+              <div className="info-pago-box">
+                <h4>📅 Información de Pagos</h4>
+                <p><strong>Día de cobro mensual:</strong> Día {diaCobroMensual} de cada mes</p>
+                <p><strong>Próxima fecha de pago:</strong> {new Date(proximaFechaPago).toLocaleDateString('es-MX', { 
+                  year: 'numeric', 
+                  month: 'long', 
+                  day: 'numeric' 
+                })}</p>
+              </div>
+            )}
+            
             <div className="alumno-buttons">
               <button type="submit" className="button">Agregar</button>
             </div>

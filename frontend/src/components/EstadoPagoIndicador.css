@@ -1,0 +1,63 @@
+.estado-pago-indicador {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.25rem 0.75rem;
+  border-radius: 1rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.icono-estado {
+  font-size: 1.25rem;
+  line-height: 1;
+}
+
+.texto-estado {
+  white-space: nowrap;
+}
+
+.dias-atraso {
+  font-weight: 700;
+  margin-left: 0.25rem;
+}
+
+/* Estado Verde - Al día */
+.semaforo-verde {
+  background-color: #d1fae5;
+  color: #065f46;
+}
+
+.semaforo-verde .icono-estado {
+  color: #10b981;
+}
+
+/* Estado Amarillo - Por vencer */
+.semaforo-amarillo {
+  background-color: #fef3c7;
+  color: #92400e;
+}
+
+.semaforo-amarillo .icono-estado {
+  color: #f59e0b;
+}
+
+/* Estado Rojo - Atrasado */
+.semaforo-rojo {
+  background-color: #fee2e2;
+  color: #991b1b;
+}
+
+.semaforo-rojo .icono-estado {
+  color: #ef4444;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}

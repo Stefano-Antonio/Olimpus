@@ -13,6 +13,7 @@ import PantallaInicio from './components/Pantalla_inicio'; // Dashboard principa
 import Alumnos from './components/Alumnos'; // Lista y gestión de alumnos registrados
 import Registrar_Alumno from './components/Registrar_Alumno'; // Formulario de nuevo registro
 import Modalidades from './components/Modalidades.js'; // Gestión de clases/modalidades
+import ConfiguracionSistema from './components/ConfiguracionSistema'; // Configuración del sistema
 
 // === IMPORTACIÓN DE ESTILOS ===
 import './App.css'; // Estilos globales
@@ -40,10 +41,12 @@ function App() {
                     {/* Gestión de modalidades/clases del gimnasio */}
                     <Route path="/modalidades" element={<Modalidades />} />
                     
+                    {/* Configuración del sistema - Fechas de pago y recargos */}
+                    <Route path="/configuracion" element={<ConfiguracionSistema />} />
+                    
                     {/* NOTA PARA IA: Rutas futuras pueden incluir:
                         - /reportes (reportes detallados)
                         - /promociones (gestión de ofertas)
-                        - /configuracion (ajustes del sistema)
                     */}
                 </Routes>
             </Router>

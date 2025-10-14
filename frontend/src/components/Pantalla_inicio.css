@@ -100,3 +100,15 @@ p {
     margin-top: 30px;
     font-size: 0.9rem;
 }
+
+/* Botón especial de configuración */
+.boton-config {
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  border: 2px solid #8b5cf6;
+}
+
+.boton-config:hover {
+  background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+  transform: translateY(-5px);
+  box-shadow: 0 10px 25px rgba(139, 92, 246, 0.4);
+}

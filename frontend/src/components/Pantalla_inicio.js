@@ -30,6 +30,9 @@ const PantallaInicio = () => {
                     <button onClick={() => navigate('/modalidades')} className="boton">
                     Agregar Modalidades
                     </button>
+                    <button onClick={() => navigate('/configuracion')} className="boton boton-config">
+                    ⚙️ Configuración del Sistema
+                    </button>
                 </div>
 
                 <div className="contacto">

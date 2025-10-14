@@ -5,6 +5,7 @@ import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import "./Alumnos.css";
 import Pilares from '../assest/pilar_olimpus.jpg';
+import EstadoPagoIndicador from './EstadoPagoIndicador';
 
 const Alumnos = () => {
   const [alumnos, setAlumnos] = useState([]);
@@ -100,6 +101,28 @@ useEffect(() => {
   
   const handleBack = () => { 
     navigate(-1); // Navegar a la página anterior 
+  }
+
+  const handleExportarExcel = async () => {
+    try {
+      const response = await axios.get('http://localhost:7000/api/excel/exportar', {
+        responseType: 'blob'
+      });
+      
+      // Crear un enlace temporal para descargar el archivo
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `alumnos_olimpus_${new Date().toISOString().split('T')[0]}.xlsx`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      
+      toast.success('Archivo Excel descargado exitosamente');
+    } catch (error) {
+      console.error('Error al exportar Excel:', error);
+      toast.error('Error al exportar los datos a Excel');
+    }
   }
 
   const handleDelete = async () => {
@@ -224,13 +247,18 @@ return (
             </div>
             <h3>Administrar alumnos</h3>
 
-            <input
-                type="text"
-                placeholder="Buscar por nombre, modalidad..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="search-bar"
-            />
+            <div className="search-and-actions">
+              <input
+                  type="text"
+                  placeholder="Buscar por nombre, modalidad..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="search-bar"
+              />
+              <button onClick={handleExportarExcel} className="btn-exportar">
+                📥 Descargar Excel
+              </button>
+            </div>
 
             {alumnosFiltrados.length > 0 ? (
                 <div className="alumno-scrollable-table">
@@ -278,10 +306,11 @@ return (
                     <table className="alumnos-table">
                         <thead>
                             <tr>
+                                <th>Estado</th>
                                 <th>Nombre</th>
                                 <th>Edad</th>
                                 <th>Modalidad</th>
-                                <th>Fecha de inscripción</th>
+                                <th>Próxima Fecha de Pago</th>
                                 <th>Meses pendientes</th>
                                 <th>Meses pagados</th>
                                 <th>Deuda en $</th>
@@ -289,8 +318,20 @@ return (
                             </tr>
                         </thead>
                         <tbody>
-                            {alumnosFiltrados.map((alumno) => (
+                            {alumnosFiltrados
+                              .sort((a, b) => {
+                                // Ordenar: rojos primero, luego amarillos, luego verdes
+                                const prioridad = { rojo: 0, amarillo: 1, verde: 2 };
+                                return prioridad[a.estado_pago || 'verde'] - prioridad[b.estado_pago || 'verde'];
+                              })
+                              .map((alumno) => (
                                 <tr key={alumno._id}>
+                                    <td>
+                                      <EstadoPagoIndicador 
+                                        estado={alumno.estado_pago || 'verde'} 
+                                        diasVencidos={alumno.dias_vencidos || 0}
+                                      />
+                                    </td>
                                     <td>{alumno.nombre}</td>
                                     <td>{calcularEdad(alumno.fecha_nacimiento)}</td>
                                     <td>
@@ -305,10 +346,17 @@ return (
                                             ))}
                                         </select>
                                     </td>
-                                    <td>{new Date(alumno.fecha_inscripcion).toISOString().split('T')[0]}</td>
+                                    <td>{alumno.proxima_fecha_pago ? new Date(alumno.proxima_fecha_pago).toLocaleDateString('es-MX') : 'N/A'}</td>
                                     <td>{alumno.pago_pendiente}</td>
                                     <td>{alumno.pagos_realizados}</td>
-                                    <td>{alumno.deuda_total}</td>
+                                    <td>
+                                      ${alumno.deuda_total_con_recargos || alumno.deuda_total}
+                                      {alumno.total_recargos > 0 && (
+                                        <span className="recargo-badge" title={`Recargos: $${alumno.total_recargos}`}>
+                                          +
+                                        </span>
+                                      )}
+                                    </td>
 
                                     <td>
                                         <button

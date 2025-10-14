@@ -290,3 +290,29 @@ textarea {
 .modal-content form button {
   margin-top: 10px;
 }
+
+/* Info box para fechas de pago */
+.info-pago-box {
+  background: linear-gradient(135deg, #e0f2fe 0%, #dbeafe 100%);
+  border-left: 4px solid #3b82f6;
+  padding: 1.5rem;
+  border-radius: 0.5rem;
+  margin: 1.5rem 0;
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.1);
+}
+
+.info-pago-box h4 {
+  color: #1e40af;
+  margin: 0 0 1rem 0;
+  font-size: 1.1rem;
+}
+
+.info-pago-box p {
+  color: #1e3a8a;
+  margin: 0.5rem 0;
+  font-size: 0.95rem;
+}
+
+.info-pago-box strong {
+  color: #1e40af;
+}
