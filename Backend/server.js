@@ -13,12 +13,18 @@ const cors = require('cors');
 // Las rutas están organizadas por funcionalidad:
 // - modalidadesRoutes: Gestión de clases/modalidades y pagos
 // - alumnosRoutes: CRUD de alumnos y cálculos de deudas
+// - configuracionRoutes: Configuración del sistema (fechas de pago, recargos)
+// - excelRoutes: Importación/exportación de datos en Excel
 const modalidadesRoutes = require('./routes/modalidadesRoutes'); 
 const alumnosRoutes = require('./routes/alumnoRoutes');
+const configuracionRoutes = require('./routes/configuracionRoutes');
+const excelRoutes = require('./routes/excelRoutes');
 
 // === IMPORTACIÓN DE MODELOS ===
 const Alumno = require('./models/alumnos'); // Modelo principal de estudiantes
-const cron = require('node-cron'); // Para tareas programadas futuras
+
+// === IMPORTACIÓN DE UTILIDADES ===
+const { iniciarTareasProgramadas } = require('./utils/cronJobs');
 
 require('dotenv').config(); // Variables de entorno (MongoDB, Stripe, etc.)
 
@@ -33,6 +39,8 @@ app.use(express.json()); // Parser para JSON en requests
 // IMPORTANTE: Todas las rutas de modalidades incluyen también funciones de pago
 app.use('/api/modalidad', modalidadesRoutes); // Gestión de clases y pagos
 app.use('/api/alumnos', alumnosRoutes); // Gestión de estudiantes
+app.use('/api/configuracion', configuracionRoutes); // Configuración del sistema
+app.use('/api/excel', excelRoutes); // Importación/exportación Excel
 
 // === CONEXIÓN A BASE DE DATOS ===
 // MongoDB Atlas - Base de datos en la nube
@@ -40,6 +48,8 @@ app.use('/api/alumnos', alumnosRoutes); // Gestión de estudiantes
 mongoose.connect('mongodb+srv://Stefano117:Mixbox360@cluster0.qgw2j.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0', {
 }).then(() => {
   console.log('✅ Conectado a MongoDB Atlas');
+  // Iniciar tareas programadas después de conectar a la base de datos
+  iniciarTareasProgramadas();
 }).catch(error => {
   console.error('❌ Error al conectar a MongoDB:', error);
 });
