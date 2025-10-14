@@ -15,11 +15,13 @@ const cors = require('cors');
 // - alumnosRoutes: CRUD de alumnos y cálculos de deudas
 // - excelRoutes: Importación y exportación de datos Excel
 // - entrenadorRoutes: Gestión de entrenadores
+// - reportesRoutes: Envío automático de reportes por correo
 const modalidadesRoutes = require('./routes/modalidadesRoutes'); 
 const alumnosRoutes = require('./routes/alumnoRoutes');
 const configuracionRoutes = require('./routes/configuracionRoutes');
 const excelRoutes = require('./routes/excelRoutes');
 const entrenadorRoutes = require('./routes/entrenadorRoutes');
+const reportesRoutes = require('./routes/reportesRoutes');
 
 // === IMPORTACIÓN DE MODELOS ===
 const Alumno = require('./models/alumnos'); // Modelo principal de estudiantes
@@ -43,11 +45,12 @@ app.use('/api/alumnos', alumnosRoutes); // Gestión de estudiantes
 app.use('/api/configuracion', configuracionRoutes); // Configuración del sistema
 app.use('/api/excel', excelRoutes); // Importación/exportación Excel
 app.use('/api/entrenadores', entrenadorRoutes); // Gestión de entrenadores
+app.use('/api/reportes', reportesRoutes); // Reportes automáticos por correo
 
 // === CONEXIÓN A BASE DE DATOS ===
 // MongoDB Atlas - Base de datos en la nube
 // NOTA PARA IA: Esta conexión está hardcodeada, considerar mover a variables de entorno
-mongoose.connect('mongodb+srv://Stefano117:Mixbox360@cluster0.qgw2j.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0', {
+mongoose.connect(process.env.MONGODB_URI, {
 }).then(() => {
   console.log('✅ Conectado a MongoDB Atlas');
   // Iniciar tareas programadas después de conectar a la base de datos

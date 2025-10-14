@@ -132,7 +132,12 @@ useEffect(() => {
   const obtenerNombreEntrenador = (idModalidad) => {
     if (!idModalidad) return 'Sin asignar';
     const modalidad = modalidades.find(m => m._id === idModalidad);
-    return modalidad && modalidad.entrenador ? modalidad.entrenador : 'Sin asignar';
+    if (!modalidad) return 'Sin asignar';
+    
+    // El backend ya envía el campo 'entrenador' con el nombre del entrenador
+    return modalidad.entrenador && modalidad.entrenador !== 'Sin entrenador' 
+      ? modalidad.entrenador 
+      : 'Sin asignar';
   };
 
   const setModal = (id) => {

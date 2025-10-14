@@ -30,6 +30,26 @@ function Modalidades() {
   const [modalidades, setModalidades] = useState([]);
   const [editandoModalidad, setEditandoModalidad] = useState(null);
   const [modoEdicion, setModoEdicion] = useState(false);
+  
+  // Estados para mostrar/ocultar secciones - solo una puede estar expandida
+  const [mostrarFormulario, setMostrarFormulario] = useState(true);
+  const [mostrarTabla, setMostrarTabla] = useState(false);
+  
+  // Función para alternar formulario
+  const toggleFormulario = () => {
+    if (!mostrarFormulario && mostrarTabla) {
+      setMostrarTabla(false);
+    }
+    setMostrarFormulario(!mostrarFormulario);
+  };
+  
+  // Función para alternar tabla
+  const toggleTabla = () => {
+    if (!mostrarTabla && mostrarFormulario) {
+      setMostrarFormulario(false);
+    }
+    setMostrarTabla(!mostrarTabla);
+  };
 
   useEffect(() => {
     cargarEntrenadores();
@@ -89,10 +109,9 @@ function Modalidades() {
   };
 
   const editarModalidad = (modalidad) => {
-    // Encontrar el entrenador por nombre para obtener su ID
-    const entrenadorEncontrado = entrenadores.find(e => e.nombre === modalidad.entrenador);
+    console.log('Editando modalidad:', modalidad);
     
-    // Reconstruir los horarios desde el string formateado
+    // Parsear los horarios del string guardado (ej: "L-Mi-V:16:00-17:00")
     const horariosReconstruidos = {
       lunes: '',
       martes: '',
@@ -102,18 +121,39 @@ function Modalidades() {
       sabado: ''
     };
 
+    // Si hay horarios guardados, intentar parsearlos
+    if (modalidad.horarios && typeof modalidad.horarios === 'string') {
+      // Ejemplo de formato esperado: "L-Mi-V:16:00-17:00" o "M-J:18:00-19:00"
+      // Por ahora los dejamos vacíos ya que el formato exacto puede variar
+      // Se pueden llenar manualmente en el formulario
+    }
+
     setFormData({
       nombre: modalidad.nombre,
       horarios: horariosReconstruidos,
       costo: modalidad.costo.toString(),
-      id_entrenador: entrenadorEncontrado ? entrenadorEncontrado._id : ''
+      id_entrenador: modalidad.id_entrenador || ''
     });
     
     setEditandoModalidad(modalidad._id);
     setModoEdicion(true);
     
-    // Scroll hacia el formulario
-    document.querySelector('.centered-form').scrollIntoView({ behavior: 'smooth' });
+    // Asegurarse de que el formulario esté visible
+    if (!mostrarFormulario) {
+      setMostrarFormulario(true);
+    }
+    // Ocultar la tabla para dar más espacio al formulario
+    if (mostrarTabla) {
+      setMostrarTabla(false);
+    }
+    
+    // Scroll hacia el formulario después de que se renderice
+    setTimeout(() => {
+      const form = document.querySelector('.centered-form');
+      if (form) {
+        form.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }, 100);
   };
 
   const cancelarEdicion = () => {
@@ -125,6 +165,11 @@ function Modalidades() {
     });
     setEditandoModalidad(null);
     setModoEdicion(false);
+    
+    // Opcional: volver a mostrar la tabla después de cancelar
+    if (!mostrarTabla) {
+      setMostrarTabla(true);
+    }
   };
 
   const eliminarModalidad = async (id, nombre) => {
@@ -160,6 +205,10 @@ function Modalidades() {
         console.log("Modalidad actualizada:", response.data);
         toast.success('Modalidad actualizada con éxito');
         cancelarEdicion();
+        // Mostrar la tabla para ver los cambios
+        if (!mostrarTabla) {
+          setMostrarTabla(true);
+        }
       } else {
         // Crear nueva modalidad
         const response = await axios.post('http://localhost:7000/api/modalidad', finalData);
@@ -182,15 +231,39 @@ function Modalidades() {
     
 return (
   <div className="materia-layout">
-    <img src={Pilares} alt="Pilar Izquierdo" className="pilar" />
-    <ToastContainer position="top-right" autoClose={3000} />
     <div className="materia-container">
       <div className="top-left">
         <button className="back-button" onClick={handleBack}>Regresar</button>
       </div>
-      <h1>{modoEdicion ? 'Editar Modalidad' : 'Agregar Modalidad'}</h1>
-      <div className="materia-content">
-        <form onSubmit={handleSubmit} className="centered-form">
+      
+      {/* Sección del Formulario con botón de minimizar */}
+      <div className="seccion-header">
+        <h1>{modoEdicion ? 'Editar Modalidad' : 'Agregar Modalidad'}</h1>
+        <button 
+          className="toggle-button" 
+          onClick={toggleFormulario}
+          title={mostrarFormulario ? "Ocultar formulario" : "Mostrar formulario"}
+        >
+          {mostrarFormulario ? '🔼 Minimizar' : '🔽 Expandir'}
+        </button>
+      </div>
+      
+      {mostrarFormulario && (
+        <div className="materia-content">
+          {modoEdicion && (
+            <div className="modo-edicion-banner">
+              <span>📝 Editando modalidad</span>
+              <button 
+                type="button" 
+                onClick={cancelarEdicion} 
+                className="btn-cancelar-rapido"
+                title="Cancelar edición"
+              >
+                ✕
+              </button>
+            </div>
+          )}
+          <form onSubmit={handleSubmit} className="centered-form">
           <div className="form-group">
             <div className="input-wrapper short-field">
               <label htmlFor="nombre">Nombre</label>
@@ -274,10 +347,21 @@ return (
           </div>
         </form>
       </div>
+      )}
 
-      {/* Tabla de modalidades existentes */}
-      <div className="modalidades-existentes">
+      {/* Tabla de modalidades existentes con botón de minimizar */}
+      <div className="seccion-header">
         <h2>Modalidades Existentes ({modalidades.length})</h2>
+        <button 
+          className="toggle-button" 
+          onClick={toggleTabla}
+          title={mostrarTabla ? "Ocultar tabla" : "Mostrar tabla"}
+        >
+          {mostrarTabla ? '🔼 Minimizar' : '🔽 Expandir'}
+        </button>
+      </div>
+      
+      <div className={`modalidades-existentes ${mostrarTabla ? 'visible' : 'hidden'}`}>
         {console.log('Estado actual de modalidades:', modalidades)}
         {modalidades.length === 0 ? (
           <p className="no-modalidades">No hay modalidades registradas</p>
@@ -332,14 +416,14 @@ return (
                           className="btn-editar-modalidad"
                           title="Editar modalidad"
                         >
-                          ✏️
+                          Edit
                         </button>
                         <button
                           onClick={() => eliminarModalidad(modalidad._id, modalidad.nombre)}
                           className="btn-eliminar-modalidad"
                           title="Eliminar modalidad"
                         >
-                          🗑️
+                          Del
                         </button>
                       </div>
                     </td>
@@ -360,7 +444,6 @@ return (
         </div>
       </div>
     )}
-    <img src={Pilares} alt="Pilar Izquierdo" className="pilar" />
   </div>
 );
 }

@@ -113,6 +113,110 @@ p {
   box-shadow: 0 10px 25px rgba(139, 92, 246, 0.4);
 }
 
+/* ===== SECCIÓN DE REPORTES AUTOMÁTICOS ===== */
+.seccion-reportes {
+  background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+  border-radius: 12px;
+  padding: 20px;
+  margin-top: 25px;
+  border: 2px solid #475569;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+}
+
+.titulo-reportes {
+  color: #f8fafc;
+  font-size: 1.3rem;
+  margin-bottom: 15px;
+  text-align: center;
+  font-weight: bold;
+}
+
+.info-reportes {
+  margin-bottom: 20px;
+  color: #cbd5e1;
+  font-size: 0.95rem;
+  line-height: 1.6;
+}
+
+.info-reportes p {
+  margin: 8px 0;
+  padding: 8px 12px;
+  background: rgba(59, 130, 246, 0.1);
+  border-radius: 6px;
+  border-left: 3px solid #3b82f6;
+}
+
+.estado-config {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  margin: 12px 0;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.estado-config.valida {
+  background: linear-gradient(135deg, #065f46 0%, #047857 100%);
+  color: #d1fae5;
+  border: 1px solid #10b981;
+}
+
+.estado-config.invalida {
+  background: linear-gradient(135deg, #7c2d12 0%, #dc2626 100%);
+  color: #fecaca;
+  border: 1px solid #ef4444;
+}
+
+.icono-estado {
+  font-size: 1.1rem;
+}
+
+.mensaje-estado {
+  flex: 1;
+}
+
+.boton-reporte {
+  background: linear-gradient(135deg, #0ea5e9 0%, #06b6d4 100%);
+  color: white;
+  border: 2px solid #0ea5e9;
+  position: relative;
+  overflow: hidden;
+  transition: all 0.3s ease;
+}
+
+.boton-reporte:hover:not(.deshabilitado) {
+  background: linear-gradient(135deg, #0284c7 0%, #0891b2 100%);
+  transform: translateY(-3px);
+  box-shadow: 0 8px 20px rgba(14, 165, 233, 0.4);
+}
+
+.boton-reporte.deshabilitado {
+  background: linear-gradient(135deg, #64748b 0%, #94a3b8 100%);
+  color: #cbd5e1;
+  border-color: #64748b;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.boton-reporte.deshabilitado:hover {
+  transform: none;
+  box-shadow: none;
+}
+
+.advertencia-config {
+  margin-top: 15px;
+  padding: 12px;
+  background: rgba(245, 158, 11, 0.1);
+  border: 1px solid #f59e0b;
+  border-radius: 8px;
+  color: #fbbf24;
+  font-size: 0.85rem;
+  text-align: center;
+  line-height: 1.4;
+}
+
 /* ===== RESPONSIVE DESIGN - SCROLL LIBRE EN MÓVILES ===== */
 @media (max-width: 768px) {
   body {
@@ -174,6 +278,35 @@ p {
   .pilar {
     display: none;
   }
+  
+  /* Ajustes para sección de reportes en móviles */
+  .seccion-reportes {
+    padding: 15px;
+    margin-top: 20px;
+  }
+  
+  .titulo-reportes {
+    font-size: 1.1rem;
+  }
+  
+  .info-reportes {
+    font-size: 0.85rem;
+  }
+  
+  .info-reportes p {
+    padding: 6px 10px;
+    margin: 6px 0;
+  }
+  
+  .estado-config {
+    padding: 8px 10px;
+    font-size: 0.8rem;
+  }
+  
+  .advertencia-config {
+    font-size: 0.75rem;
+    padding: 10px;
+  }
 }
 
 @media (max-width: 480px) {
@@ -196,5 +329,23 @@ p {
   
   .contacto {
     font-size: 0.7rem;
+  }
+  
+  /* Más ajustes para reportes en pantallas pequeñas */
+  .seccion-reportes {
+    padding: 12px;
+  }
+  
+  .titulo-reportes {
+    font-size: 1rem;
+  }
+  
+  .info-reportes {
+    font-size: 0.8rem;
+  }
+  
+  .estado-config {
+    font-size: 0.75rem;
+    gap: 6px;
   }
 }

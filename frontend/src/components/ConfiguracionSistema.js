@@ -377,7 +377,7 @@ const ConfiguracionSistema = () => {
           <h3>ℹ️ Información Importante</h3>
           <ul>
             <li>Los cambios en la configuración aplicarán para futuros cálculos de pagos</li>
-            <li>Los recargos se aplican automáticamente todos los días a las 00:01 AM</li>
+            <li>Los recargos se aplican automáticamente todos los días a las 5:00 PM</li>
             <li>Los alumnos con pagos atrasados recibirán recargos solo una vez por mes</li>
             <li>Puedes revisar los recargos aplicados en la sección de alumnos</li>
           </ul>

@@ -2,13 +2,15 @@
 // TAREAS PROGRAMADAS (CRON JOBS)
 // =================================================================
 // Este archivo contiene las tareas automáticas del sistema,
-// como la aplicación de recargos por pago tardío.
+// como la aplicación de recargos por pago tardío y envío de reportes.
 
 const cron = require('node-cron');
 const Alumno = require('../models/alumnos');
 const Modalidad = require('../models/modalidades');
 const Recargo = require('../models/recargos');
 const ConfiguracionSistema = require('../models/configuracion');
+const { generarReporteDiario } = require('./reporteService');
+const { verificarConfiguracionCorreo } = require('./emailService');
 
 // Función para calcular meses vencidos desde una fecha fija
 const calcularMesesVencidosDesde = (fechaInicio, fechaActual) => {
@@ -20,6 +22,30 @@ const calcularMesesVencidosDesde = (fechaInicio, fechaActual) => {
   }
   
   return Math.max(0, mesesTranscurridos);
+};
+
+// Función para enviar reporte diario automático
+const enviarReporteAutomatico = async () => {
+  try {
+    console.log('� Ejecutando envío automático de reporte diario...');
+    
+    // Verificar configuración de correo antes de intentar enviar
+    if (!verificarConfiguracionCorreo()) {
+      console.warn('⚠️ Configuración de correo incompleta. Saltando envío de reporte.');
+      return;
+    }
+    
+    const resultado = await generarReporteDiario();
+    
+    if (resultado.success) {
+      console.log('✅ Reporte diario enviado automáticamente');
+      console.log(`📊 Datos del reporte:`, resultado.datos);
+    } else {
+      console.error('❌ Error en el envío automático:', resultado.error);
+    }
+  } catch (error) {
+    console.error('❌ Error en la tarea de reporte automático:', error);
+  }
 };
 
 // Función para aplicar recargos pendientes (versión simplificada para inicio)
@@ -40,20 +66,30 @@ const aplicarRecargosPendientes = async () => {
 
 // Configurar cron job para ejecutarse diariamente a las 00:01 AM
 const iniciarTareasProgramadas = () => {
-  // Ejecutar todos los días a las 00:01 AM
-  cron.schedule('1 0 * * *', () => {
+  // Ejecutar todos los días a las 5:00 PM - Recargos
+  cron.schedule('0 17 * * *', () => {
     console.log('⏰ Iniciando tarea programada de recargos...');
     aplicarRecargosPendientes();
   }, {
     timezone: "America/Mexico_City"
   });
   
+  // Ejecutar todos los días a las 8:00 PM - Reporte diario automático
+  cron.schedule('0 20 * * *', () => {
+    console.log('⏰ Iniciando envío automático de reporte diario...');
+    enviarReporteAutomatico();
+  }, {
+    timezone: "America/Mexico_City"
+  });
+  
   console.log('✅ Tareas programadas iniciadas correctamente');
-  console.log('📅 Los recargos se aplicarán automáticamente todos los días a las 00:01 AM');
+  console.log('📅 Los recargos se aplicarán automáticamente todos los días a las 5:00 PM');
+  console.log('📧 Los reportes se enviarán automáticamente todos los días a las 8:00 PM');
 };
 
 module.exports = {
   iniciarTareasProgramadas,
   aplicarRecargosPendientes, // Exportar para poder ejecutar manualmente si es necesario
+  enviarReporteAutomatico, // Exportar para pruebas manuales
   calcularMesesVencidosDesde
 };
