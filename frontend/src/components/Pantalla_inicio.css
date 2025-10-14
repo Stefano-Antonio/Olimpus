@@ -112,3 +112,89 @@ p {
   transform: translateY(-5px);
   box-shadow: 0 10px 25px rgba(139, 92, 246, 0.4);
 }
+
+/* ===== RESPONSIVE DESIGN - SCROLL LIBRE EN MÓVILES ===== */
+@media (max-width: 768px) {
+  body {
+    overflow: auto; /* Scroll libre */
+  }
+  
+  .pantalla-inicio {
+    overflow: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: 10px;
+    min-height: auto;
+  }
+  
+  .logo {
+    width: 200px;
+    margin-bottom: 15px;
+  }
+  
+  .contenido-principal {
+    flex-direction: column;
+    align-items: center;
+    overflow: visible;
+  }
+  
+  .info-centro {
+    margin: 20px 0;
+    padding: 0 10px;
+  }
+  
+  h1 {
+    font-size: 2rem;
+  }
+  
+  p {
+    font-size: 1rem;
+  }
+  
+  .botones {
+    gap: 15px;
+    width: 100%;
+    max-width: 300px;
+  }
+  
+  .boton {
+    padding: 12px 20px;
+    font-size: 14px;
+    width: 100%;
+    text-align: center;
+    border: none;
+    cursor: pointer;
+  }
+  
+  .contacto {
+    margin-top: 20px;
+    font-size: 0.8rem;
+  }
+  
+  /* Pilares ocultos en móviles */
+  .pilar {
+    display: none;
+  }
+}
+
+@media (max-width: 480px) {
+  .pantalla-inicio {
+    padding: 5px;
+  }
+  
+  .logo {
+    width: 150px;
+  }
+  
+  h1 {
+    font-size: 1.5rem;
+  }
+  
+  .boton {
+    padding: 10px 15px;
+    font-size: 13px;
+  }
+  
+  .contacto {
+    font-size: 0.7rem;
+  }
+}

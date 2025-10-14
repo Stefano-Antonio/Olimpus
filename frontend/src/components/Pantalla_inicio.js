@@ -28,7 +28,7 @@ const PantallaInicio = () => {
                     Alumnos Registrados y Pagos
                     </button>
                     <button onClick={() => navigate('/modalidades')} className="boton">
-                    Agregar Modalidades
+                    Modalidades
                     </button>
                     <button onClick={() => navigate('/configuracion')} className="boton boton-config">
                     ⚙️ Configuración del Sistema

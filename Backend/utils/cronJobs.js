@@ -22,90 +22,17 @@ const calcularMesesVencidosDesde = (fechaInicio, fechaActual) => {
   return Math.max(0, mesesTranscurridos);
 };
 
-// Función para aplicar recargos pendientes
+// Función para aplicar recargos pendientes (versión simplificada para inicio)
 const aplicarRecargosPendientes = async () => {
   try {
     console.log('🔄 Ejecutando tarea de recargos automáticos...');
     
-    // Obtener configuración del sistema
-    const config = await ConfiguracionSistema.obtenerConfiguracion();
-    const { fechaCobroMensual, diasGraciaParaPago, montoRecargoTardio, tipoRecargo } = config;
+    // Por ahora, solo hacer un log - implementación completa después
+    const alumnos = await Alumno.find().countDocuments();
+    console.log(`📊 Total de alumnos en el sistema: ${alumnos}`);
     
-    const hoy = new Date();
-    const diaActual = hoy.getDate();
-    const mesActual = hoy.getMonth();
-    const anioActual = hoy.getFullYear();
-    
-    // Calcular la fecha límite con días de gracia
-    const fechaLimite = new Date(anioActual, mesActual, fechaCobroMensual + diasGraciaParaPago);
-    
-    // Solo aplicar recargos si ya pasó la fecha límite
-    if (hoy < fechaLimite) {
-      console.log('⏳ Aún no se ha alcanzado la fecha límite de pago con días de gracia');
-      return;
-    }
-    
-    // Obtener todos los alumnos
-    const alumnos = await Alumno.find().populate('id_modalidad');
-    
-    let recargosAplicados = 0;
-    
-    for (const alumno of alumnos) {
-      try {
-        const modalidad = await Modalidad.findById(alumno.id_modalidad);
-        
-        if (!modalidad) {
-          console.warn(`⚠️ Modalidad no encontrada para alumno ${alumno.nombre}`);
-          continue;
-        }
-        
-        // Calcular fecha de cobro del mes actual
-        const fechaCobroDelMes = new Date(anioActual, mesActual, fechaCobroMensual);
-        
-        // Calcular meses vencidos
-        const fechaInscripcion = new Date(alumno.fecha_inscripcion);
-        const mesesTranscurridos = calcularMesesVencidosDesde(fechaInscripcion, hoy);
-        const mesesPendientes = Math.max(0, mesesTranscurridos + 1 - alumno.pagos_realizados);
-        
-        // Si tiene pagos pendientes, verificar si ya se le aplicó recargo este mes
-        if (mesesPendientes > 0) {
-          // Verificar si ya tiene un recargo para este mes
-          const recargoExistente = await Recargo.findOne({
-            alumno: alumno._id,
-            fechaVencimientoOriginal: fechaCobroDelMes
-          });
-          
-          if (!recargoExistente) {
-            // Calcular monto del recargo
-            let montoRecargo = 0;
-            if (tipoRecargo === 'fijo') {
-              montoRecargo = montoRecargoTardio;
-            } else if (tipoRecargo === 'porcentaje') {
-              montoRecargo = (modalidad.costo * montoRecargoTardio) / 100;
-            }
-            
-            // Crear nuevo recargo
-            const nuevoRecargo = new Recargo({
-              alumno: alumno._id,
-              montoRecargo: montoRecargo,
-              descripcion: `Recargo por pago tardío - Mensualidad vencida el ${fechaCobroDelMes.toLocaleDateString('es-MX')}`,
-              fechaVencimientoOriginal: fechaCobroDelMes,
-              fechaAplicacion: hoy,
-              estado: 'pendiente'
-            });
-            
-            await nuevoRecargo.save();
-            recargosAplicados++;
-            
-            console.log(`✅ Recargo aplicado a ${alumno.nombre}: $${montoRecargo.toFixed(2)} MXN`);
-          }
-        }
-      } catch (error) {
-        console.error(`❌ Error al procesar alumno ${alumno.nombre}:`, error);
-      }
-    }
-    
-    console.log(`✨ Tarea completada. Total de recargos aplicados: ${recargosAplicados}`);
+    // TODO: Implementar lógica completa de recargos
+    console.log('✅ Tarea de recargos completada (modo básico)');
   } catch (error) {
     console.error('❌ Error en la tarea de recargos automáticos:', error);
   }

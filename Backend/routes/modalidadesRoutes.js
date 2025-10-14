@@ -6,7 +6,7 @@ const Pago = require('../models/pagos');
 
 // Crear una nueva modalidad
 router.post('/', async (req, res) => {
-    const { nombre, horarios, costo } = req.body;
+    const { nombre, horarios, costo, id_entrenador } = req.body;
     console.log('Datos recibidos para crear la materia:', req.body);
 
     try {
@@ -16,11 +16,12 @@ router.post('/', async (req, res) => {
             return res.status(400).json({ message: 'Ya existe una modalidad con este nombre y horarios' });
         }
 
-        // Crear la modalidad con la matrícula del docente
+        // Crear la modalidad con el entrenador (si se proporciona)
         const newModalidad = new Modalidad({
             nombre,
             horarios,
-            costo
+            costo,
+            id_entrenador: id_entrenador || null
         });
 
         await newModalidad.save();
@@ -37,7 +38,7 @@ router.post('/', async (req, res) => {
 router.get('/', async (req, res) => {
     console.log('Obtener modalidades');
     try {
-        const modalidades = await Modalidad.find();
+        const modalidades = await Modalidad.find().populate('id_entrenador', 'nombre');
         const response = modalidades.map((modalidad) => {
             const diasCortos = {
                 lunes: 'L',
@@ -64,7 +65,9 @@ router.get('/', async (req, res) => {
                 _id: modalidad._id,
                 nombre: modalidad.nombre,
                 horarios: `${dias.join('-')}-${horaComun}`,
-                costo: modalidad.costo
+                costo: modalidad.costo,
+                entrenador: modalidad.id_entrenador ? modalidad.id_entrenador.nombre : 'Sin entrenador',
+                id_entrenador: modalidad.id_entrenador ? modalidad.id_entrenador._id : null
             };
         });
 
@@ -72,6 +75,56 @@ router.get('/', async (req, res) => {
     } catch (error) {
         console.error('Error al obtener modalidades:', error);
         res.status(500).json({ error: 'Error al obtener modalidades' });
+    }
+});
+
+// Actualizar una modalidad existente
+router.put('/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { nombre, horarios, costo, id_entrenador } = req.body;
+        
+        console.log('Datos recibidos para actualizar modalidad:', req.body);
+
+        const modalidadActualizada = await Modalidad.findByIdAndUpdate(
+            id,
+            {
+                nombre,
+                horarios,
+                costo,
+                id_entrenador: id_entrenador || null
+            },
+            { new: true, runValidators: true }
+        );
+
+        if (!modalidadActualizada) {
+            return res.status(404).json({ message: 'Modalidad no encontrada' });
+        }
+
+        console.log('Modalidad actualizada:', modalidadActualizada);
+        res.json(modalidadActualizada);
+    } catch (error) {
+        console.error('Error al actualizar modalidad:', error);
+        res.status(500).json({ message: 'Error al actualizar modalidad', error: error.message });
+    }
+});
+
+// Eliminar una modalidad
+router.delete('/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        
+        const modalidadEliminada = await Modalidad.findByIdAndDelete(id);
+
+        if (!modalidadEliminada) {
+            return res.status(404).json({ message: 'Modalidad no encontrada' });
+        }
+
+        console.log('Modalidad eliminada:', modalidadEliminada);
+        res.json({ message: 'Modalidad eliminada exitosamente' });
+    } catch (error) {
+        console.error('Error al eliminar modalidad:', error);
+        res.status(500).json({ message: 'Error al eliminar modalidad', error: error.message });
     }
 });
 
@@ -94,25 +147,29 @@ router.post('/pago', async (req, res) => {
 });
 
 router.post('/sumarpago', async (req, res) => {
-  const { monto, id, costo } = req.body;
+  const { monto, id, costo, concepto } = req.body;
   try {
     const alumno = await Alumno.findById(id);
     if (!alumno) {
       return res.status(404).json({ message: 'Alumno no encontrado' });
     }
     console.log('Datos recibidos para registrar el pago:', req.body);
-    // 1. Registrar el nuevo pago
+    
+    // 1. Registrar el nuevo pago con concepto
     const nuevoPago = new Pago({
       alumno: id,
       costo: costo,
-      fecha: new Date() // Fecha actual
+      fecha: new Date(),
+      concepto: concepto || 'Mensualidad'
     });
 
     await nuevoPago.save();
 
-    // 2. Sumar el monto a los pagos realizados
-    alumno.pagos_realizados = (alumno.pagos_realizados || 0) + monto;
-    await alumno.save();
+    // 2. Sumar el monto a los pagos realizados (solo si monto > 0)
+    if (monto > 0) {
+      alumno.pagos_realizados = (alumno.pagos_realizados || 0) + monto;
+      await alumno.save();
+    }
 
     res.status(200).json({ message: 'Pago registrado y guardado con éxito', alumno });
   } catch (error) {
@@ -148,24 +205,52 @@ router.post('/cambiarModalidad', async (req, res) => {
 // Descargar el total de los pagos del día
 router.get('/corte-dia', async (req, res) => {
     try {
-      const hoy = new Date();
-      const inicioDelDia = new Date(hoy.setHours(0, 0, 0, 0));
-      const finDelDia = new Date(hoy.setHours(23, 59, 59, 999));
+      // Obtener la fecha del parámetro o usar la fecha actual
+      let fechaConsulta;
+      if (req.query.fecha) {
+        // Crear la fecha usando la fecha local sin conversión UTC
+        const [year, month, day] = req.query.fecha.split('-');
+        fechaConsulta = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+      } else {
+        fechaConsulta = new Date();
+      }
+      
+      // Crear inicio y fin del día en hora local
+      const inicioDelDia = new Date(fechaConsulta.getFullYear(), fechaConsulta.getMonth(), fechaConsulta.getDate(), 0, 0, 0, 0);
+      const finDelDia = new Date(fechaConsulta.getFullYear(), fechaConsulta.getMonth(), fechaConsulta.getDate(), 23, 59, 59, 999);
   
-      // Obtener los pagos realizados en el día
+      console.log('Fecha consultada:', req.query.fecha);
+      console.log('Fecha procesada:', fechaConsulta);
+      console.log('Buscando pagos entre:', inicioDelDia, 'y', finDelDia);
+  
+      // Obtener los pagos realizados en el día con populate para traer datos del alumno
       const pagosDelDia = await Pago.find({
         fecha: { $gte: inicioDelDia, $lte: finDelDia }
-      });
+      }).populate('alumno', 'nombre').sort({ fecha: -1 });
+      
+      // Agrupar pagos por concepto para el resumen
+      const resumenPorConcepto = pagosDelDia.reduce((acc, pago) => {
+        const concepto = pago.concepto || 'Mensualidad';
+        if (!acc[concepto]) {
+          acc[concepto] = { cantidad: 0, total: 0 };
+        }
+        acc[concepto].cantidad += 1;
+        acc[concepto].total += pago.costo || 0;
+        return acc;
+      }, {});
   
       // Sumar los costos de todos los pagos
       const totalPagado = pagosDelDia.reduce((acc, pago) => acc + (pago.costo || 0), 0);
-        console.log('Total pagado del día:', totalPagado,pagosDelDia);
       
-        // Devolver todos los pagos y el total
-        res.status(200).json({
-            totalPagado: totalPagado.toFixed(2),
-            pagos: pagosDelDia
-        });
+      console.log('Total pagado del día:', totalPagado, 'Cantidad de pagos:', pagosDelDia.length);
+      
+      // Devolver todos los pagos y el total
+      res.status(200).json({
+          totalPagado: totalPagado.toFixed(2),
+          pagos: pagosDelDia,
+          fecha: fechaConsulta.toISOString().split('T')[0],
+          resumen: resumenPorConcepto
+      });
   
     } catch (error) {
       console.error('Error al generar el corte del día:', error);

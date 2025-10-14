@@ -18,6 +18,14 @@ const ConfiguracionSistemaSchema = new Schema({
     max: 31
   },
   
+  // === CONFIGURACIÓN DE COSTOS ===
+  // Costo de inscripción (pago único al registrar nuevo alumno)
+  costoInscripcion: { 
+    type: Number, 
+    default: 0,
+    min: 0
+  },
+  
   // === SISTEMA DE RECARGOS ===
   // Días de gracia después de la fecha límite antes de aplicar recargo
   diasGraciaParaPago: { 
@@ -55,6 +63,7 @@ ConfiguracionSistemaSchema.statics.obtenerConfiguracion = async function() {
     // Crear configuración por defecto si no existe
     config = await this.create({
       fechaCobroMensual: 5,
+      costoInscripcion: 0,
       diasGraciaParaPago: 5,
       montoRecargoTardio: 50,
       tipoRecargo: 'fijo'

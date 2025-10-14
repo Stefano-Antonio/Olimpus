@@ -1,5 +1,143 @@
+/* ===== CONFIGURACIÓN GLOBAL DE SCROLL ===== */
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  overflow-x: auto; /* Permite scroll horizontal global */
+  overflow-y: auto; /* Permite scroll vertical global */
+  min-width: 320px; /* Ancho mínimo para evitar problemas en móviles muy pequeños */
+  
+  /* Scroll libre y suave en móviles */
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
+}
+
+/* Habilitar scroll libre en móviles */
+@media (max-width: 768px) {
+  html, body {
+    overflow-x: scroll; /* Scroll horizontal libre en móviles */
+    overflow-y: scroll; /* Scroll vertical libre en móviles */
+  }
+  
+  /* Remover restricciones de ancho en móviles */
+  body {
+    min-width: auto;
+    width: auto;
+  }
+}
+
+/* Contenedor principal de la aplicación */
 .App {
-  text-align: center;
+  min-width: 100%;
+  overflow-x: auto;
+}
+
+/* ===== SCROLL HORIZONTAL PARA TABLAS ===== */
+.table-container {
+  overflow-x: auto;
+  overflow-y: visible;
+  width: 100%;
+  -webkit-overflow-scrolling: touch; /* Scroll suave en iOS */
+}
+
+.table-responsive {
+  overflow-x: auto;
+  overflow-y: visible;
+  width: 100%;
+  min-height: 0.01%; /* Hack para IE */
+}
+
+/* ===== SCROLL HORIZONTAL PARA CONTENIDO ANCHO ===== */
+.scroll-horizontal {
+  overflow-x: auto;
+  overflow-y: visible;
+  width: 100%;
+  white-space: nowrap;
+}
+
+/* ===== ESTILOS DE SCROLLBAR PERSONALIZADOS ===== */
+/* Webkit browsers (Chrome, Safari, Edge) */
+::-webkit-scrollbar {
+  height: 8px;
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #0C1A2B;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #1E3A5F;
+}
+
+/* Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #0C1A2B #f1f1f1;
+}
+
+/* ===== SCROLL LIBRE MÓVILES - CONFIGURACIÓN AVANZADA ===== */
+@media (max-width: 768px) {
+  /* Hacer que todos los contenedores principales tengan scroll libre */
+  .App,
+  .app-container,
+  .main-content,
+  [class*="-container"],
+  [class*="-layout"] {
+    overflow: auto !important;
+    -webkit-overflow-scrolling: touch;
+    scroll-behavior: smooth;
+  }
+  
+  /* Remover restricciones de overflow hidden en móviles */
+  body {
+    overflow: auto !important;
+  }
+  
+  /* Mejorar el touch scrolling */
+  * {
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: auto;
+  }
+}
+
+/* ===== GARANTÍA PARA MODALES ===== */
+.modal,
+[class*="modal"],
+[role="dialog"] {
+  z-index: 99999 !important;
+  position: fixed !important;
+}
+
+.modal-content,
+[class*="modal-content"] {
+  z-index: 100000 !important;
+  position: relative !important;
+}
+
+/* Evitar que otros elementos interfieran con modales */
+body.modal-open {
+  overflow: hidden !important;
+}
+
+/* Asegurar que todos los headers tengan z-index menor */
+header, .header, [class*="header"], nav, .nav, [class*="nav"] {
+  z-index: 99 !important;
+  position: relative;
+}
+
+/* Evitar que elementos sticky interfieran */
+[class*="sticky"], [class*="fixed"] {
+  z-index: 98 !important;
 }
 
 .App-logo {

@@ -13,12 +13,13 @@ const cors = require('cors');
 // Las rutas están organizadas por funcionalidad:
 // - modalidadesRoutes: Gestión de clases/modalidades y pagos
 // - alumnosRoutes: CRUD de alumnos y cálculos de deudas
-// - configuracionRoutes: Configuración del sistema (fechas de pago, recargos)
-// - excelRoutes: Importación/exportación de datos en Excel
+// - excelRoutes: Importación y exportación de datos Excel
+// - entrenadorRoutes: Gestión de entrenadores
 const modalidadesRoutes = require('./routes/modalidadesRoutes'); 
 const alumnosRoutes = require('./routes/alumnoRoutes');
 const configuracionRoutes = require('./routes/configuracionRoutes');
 const excelRoutes = require('./routes/excelRoutes');
+const entrenadorRoutes = require('./routes/entrenadorRoutes');
 
 // === IMPORTACIÓN DE MODELOS ===
 const Alumno = require('./models/alumnos'); // Modelo principal de estudiantes
@@ -41,6 +42,7 @@ app.use('/api/modalidad', modalidadesRoutes); // Gestión de clases y pagos
 app.use('/api/alumnos', alumnosRoutes); // Gestión de estudiantes
 app.use('/api/configuracion', configuracionRoutes); // Configuración del sistema
 app.use('/api/excel', excelRoutes); // Importación/exportación Excel
+app.use('/api/entrenadores', entrenadorRoutes); // Gestión de entrenadores
 
 // === CONEXIÓN A BASE DE DATOS ===
 // MongoDB Atlas - Base de datos en la nube

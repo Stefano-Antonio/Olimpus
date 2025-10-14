@@ -4,7 +4,8 @@ const multer = require('multer');
 const { 
   procesarArchivoExcel, 
   importarAlumnosDesdeExcel, 
-  exportarAlumnosAExcel 
+  exportarAlumnosAExcel,
+  generarPlantillaExcel
 } = require('../utils/excelProcessor');
 
 // Configurar multer para almacenar archivos en memoria
@@ -50,7 +51,9 @@ router.post('/importar', upload.single('file'), async (req, res) => {
       message: 'Proceso de importación completado',
       exitosos: resultados.exitosos,
       fallidos: resultados.fallidos,
+      duplicados: resultados.duplicados || 0,
       errores: resultados.errores,
+      registrosRechazados: resultados.registrosRechazados || [],
       totalProcesado: data.length
     });
     
@@ -80,6 +83,28 @@ router.get('/exportar', async (req, res) => {
     console.error('Error al exportar alumnos a Excel:', error);
     res.status(500).json({ 
       message: 'Error al exportar alumnos', 
+      error: error.message 
+    });
+  }
+});
+
+// Descargar plantilla Excel
+router.get('/plantilla', async (req, res) => {
+  try {
+    const buffer = await generarPlantillaExcel();
+    
+    // Configurar headers para descarga
+    const filename = `plantilla_olimpus_${new Date().toISOString().split('T')[0]}.xlsx`;
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.setHeader('Content-Length', buffer.length);
+    
+    res.send(buffer);
+    
+  } catch (error) {
+    console.error('Error al generar plantilla Excel:', error);
+    res.status(500).json({ 
+      message: 'Error al generar plantilla', 
       error: error.message 
     });
   }

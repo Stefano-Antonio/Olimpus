@@ -12,6 +12,14 @@ const ModalidadSchema = new Schema({
   // === INFORMACIÓN DE LA CLASE ===
   nombre: { type: String, required: true }, // Ej: "Gimnasia Femenil", "Parkour", "Baby Gym"
   
+  // === ENTRENADOR ASIGNADO ===
+  id_entrenador: { 
+    type: mongoose.Schema.Types.ObjectId, 
+    ref: 'Entrenador', 
+    required: false,
+    default: null // Permite modalidades sin entrenador asignado
+  },
+  
   // === HORARIOS SEMANALES ===
   // IMPORTANTE: Los horarios se guardan como strings (ej: "16:00-17:00")
   // null indica que no hay clase ese día

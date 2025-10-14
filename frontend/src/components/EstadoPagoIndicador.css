@@ -1,25 +1,34 @@
 .estado-pago-indicador {
   display: inline-flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.25rem 0.75rem;
-  border-radius: 1rem;
-  font-size: 0.875rem;
+  gap: 0.25rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.75rem;
+  font-size: 0.75rem;
   font-weight: 500;
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
 }
 
 .icono-estado {
-  font-size: 1.25rem;
+  font-size: 1rem;
   line-height: 1;
+  flex-shrink: 0;
 }
 
 .texto-estado {
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
 }
 
 .dias-atraso {
   font-weight: 700;
-  margin-left: 0.25rem;
+  margin-left: 0.125rem;
+  font-size: 0.7rem;
+  flex-shrink: 0;
 }
 
 /* Estado Verde - Al día */

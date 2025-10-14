@@ -16,7 +16,15 @@ router.post('/', async (req, res) => {
 
     // Crear un nuevo alumno
     const fecha_inscripcion = new Date().toLocaleDateString('en-CA'); // Formato YYYY-MM-DD
-    const newAlumno = new Alumno({ id_modalidad, fecha_nacimiento, fecha_inscripcion, nombre, telefono, correo});
+    const newAlumno = new Alumno({ 
+      id_modalidad, 
+      fecha_nacimiento, 
+      fecha_inscripcion, 
+      nombre, 
+      telefono, 
+      correo,
+      pagos_realizados: 0  // Especificar explícitamente como número
+    });
     await newAlumno.save();
 
       

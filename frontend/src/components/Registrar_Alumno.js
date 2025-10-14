@@ -29,6 +29,10 @@ function Registrar_Alumno() {
   const [tipoPago, setTipoPago] = useState(""); // Tipo de pago seleccionado
   const [proximaFechaPago, setProximaFechaPago] = useState(""); // Próxima fecha de pago según configuración
   const [diaCobroMensual, setDiaCobroMensual] = useState(5); // Día de cobro mensual configurado
+  const [costoInscripcion, setCostoInscripcion] = useState(0); // Costo de inscripción configurable
+  const [montoPersonalizado, setMontoPersonalizado] = useState(undefined); // Monto personalizable para pagos
+  const [tipoSeleccionado, setTipoSeleccionado] = useState(""); // Tipo de pago seleccionado (mensual/anual)
+  const [modalidadSeleccionada, setModalidadSeleccionada] = useState(null); // Modalidad actualmente seleccionada
 
   // === FORMULARIO PRINCIPAL ===
   // Estado que mantiene todos los datos del nuevo alumno
@@ -41,7 +45,7 @@ function Registrar_Alumno() {
   });
 
   
-  // Obtener la lista de modalidades y próxima fecha de pago desde la API
+  // Obtener la lista de modalidades, próxima fecha de pago y configuración del sistema desde la API
   useEffect(() => {
     const fetchModalidades = async () => {
       try {
@@ -62,20 +66,35 @@ function Registrar_Alumno() {
       }
     };
 
+    const fetchConfiguracion = async () => {
+      try {
+        const response = await axios.get(`http://localhost:7000/api/configuracion`);
+        setCostoInscripcion(response.data.costoInscripcion || 0);
+      } catch (error) {
+        console.error("Error al obtener configuración:", error);
+        setCostoInscripcion(0); // Valor por defecto en caso de error
+      }
+    };
+
     fetchModalidades();
     fetchProximaFechaPago();
+    fetchConfiguracion();
   }, []);
 
   useEffect(() => {
     if (form.id_modalidad) {
-        const modalidadSeleccionada = modalidades.find(
+        const modalidadEncontrada = modalidades.find(
             (modalidad) => modalidad._id === form.id_modalidad
         );
-        if (modalidadSeleccionada) {
-            setCostoModalidad(modalidadSeleccionada.costo);
+        if (modalidadEncontrada) {
+            setCostoModalidad(modalidadEncontrada.costo);
+            setModalidadSeleccionada(modalidadEncontrada);
+        } else {
+            setModalidadSeleccionada(null);
         }
     } else {
         setCostoModalidad(""); // Reinicia el costo si no hay modalidad seleccionada
+        setModalidadSeleccionada(null);
     }
 }, [form.id_modalidad, modalidades]);
 
@@ -98,21 +117,57 @@ function Registrar_Alumno() {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    setMostrarModal(true); // Solo mostrar el modal
+    
+    // Si no hay modalidad seleccionada, registrar directamente sin pago
+    if (!form.id_modalidad) {
+      if (window.confirm("No has seleccionado una modalidad. ¿Deseas registrar al alumno solo con los datos personales?")) {
+        registrarAlumnoSinPago();
+      }
+      return;
+    }
+    
+    // Si hay modalidad, mostrar opciones de pago
+    setMostrarModal(true);
+  };
+
+  // Función para registrar alumno sin pago (solo datos personales)
+  const registrarAlumnoSinPago = async () => {
+    try {
+      const formData = {
+        ...form,
+        id_modalidad: null // Explícitamente null cuando no hay modalidad
+      };
+
+      const response = await axios.post("http://localhost:7000/api/alumnos", formData);
+      console.log("Alumno registrado sin modalidad:", response.data);
+      toast.success("Alumno registrado exitosamente sin modalidad");
+      setForm({ id_modalidad: "", fecha_nacimiento: "", nombre: "", correo: "", telefono: "" });
+      setModalidadSeleccionada(null); // Limpiar modalidad seleccionada
+    } catch (error) {
+      console.error("Error al registrar el alumno:", error.response?.data || error);
+      toast.error("Hubo un error al registrar el alumno");
+    }
   };
 
   const registrarAlumno = async () => {
     try {
-      const response = await axios.post("http://localhost:7000/api/alumnos", form);
+      // Preparar los datos del formulario, convirtiendo id_modalidad vacío a null
+      const formData = {
+        ...form,
+        id_modalidad: form.id_modalidad || null // Si está vacío, enviar null
+      };
+
+      const response = await axios.post("http://localhost:7000/api/alumnos", formData);
       console.log("Alumno agregado:", response.data);
       setAlumnoId(response.data._id); // Guardar el ID del nuevo alumno en la variable
       toast.success("Alumno agregado con éxito", alumnoId);
       setForm({ id_modalidad: "", fecha_nacimiento: "", nombre: "", correo: "", telefono: "" });
       setMostrarModal(false);
       setTipoPago(""); 
+      setModalidadSeleccionada(null); // Limpiar modalidad seleccionada 
       return response.data._id; 
         } catch (error) {
-      console.error("Error al agregar el alumno:", error);
+      console.error("Error al agregar el alumno:", error.response?.data || error);
       toast.error("Hubo un error al agregar el alumno");
     }
   };
@@ -140,7 +195,7 @@ function Registrar_Alumno() {
           return;
       }
 
-      await sumarPagosRealizados(id, 1); // Usa el ID directamente
+      await registrarPagosDetallados(id, false); // false = pago mensual
 
       toast.success("Pago y registro exitosos 🎉");
       setMostrarModal(false);
@@ -152,33 +207,90 @@ function Registrar_Alumno() {
   };
 
 
+  // Función legacy mantenida para compatibilidad (ya no se usa directamente)
   const handlePagoEfectivoOTransferencia = async () => {
     try {
-        // 3. Si el pago fue exitoso, registrar al alumno
-        const id = await registrarAlumno(); // Usa el ID devuelto por registrarAlumno
+        const id = await registrarAlumno();
 
         if (!id) {
             toast.error("No se pudo obtener el ID del alumno. Intente nuevamente.");
             return;
         }
 
-        await sumarPagosRealizados(id, 1); // Usa el ID directamente
+        await registrarPagosDetallados(id, false); // false = pago mensual
 
         toast.success("Alumno registrado con éxito");
-        setMostrarModal(false); // Cierra el modal
+        setMostrarModal(false);
     } catch (error) {
         console.error("Error al registrar el alumno:", error);
         toast.error("Hubo un error al registrar el alumno");
     }
 };
 // Handle para sumar pagos realizados a la ruta
-const sumarPagosRealizados = async (id, monto) => {
+const sumarPagosRealizados = async (id, monto, costo) => {
   try {
-    await axios.post("http://localhost:7000/api/modalidad/sumarpago", { monto, id });
+    await axios.post("http://localhost:7000/api/modalidad/sumarpago", { monto, id, costo });
     console.log("Pago registrado exitosamente");
   } catch (error) {
     console.error("Error al registrar el pago:", error);
     toast.error("Hubo un error al registrar el pago");
+  }
+};
+
+// Función específica para registrar pagos de inscripción por separado
+const registrarPagosDetallados = async (id, esAnualidad = false, montoTotalPersonalizado = null) => {
+  try {
+    // Si hay monto personalizado, calcular proporcionalmente
+    let costoInscripcionFinal = costoInscripcion;
+    let costoModalidadFinal = parseFloat(costoModalidad || 0) * (esAnualidad ? 11 : 1);
+    
+    if (montoTotalPersonalizado !== null) {
+      const totalOriginal = costoInscripcion + costoModalidadFinal;
+      if (totalOriginal > 0) {
+        // Calcular proporción para cada concepto
+        const proporcionInscripcion = costoInscripcion / totalOriginal;
+        const proporcionModalidad = costoModalidadFinal / totalOriginal;
+        
+        costoInscripcionFinal = montoTotalPersonalizado * proporcionInscripcion;
+        costoModalidadFinal = montoTotalPersonalizado * proporcionModalidad;
+      } else {
+        // Si no hay modalidad, todo el monto va a inscripción
+        costoInscripcionFinal = montoTotalPersonalizado;
+        costoModalidadFinal = 0;
+      }
+    }
+
+    // 1. Registrar pago de inscripción (si es mayor a 0)
+    if (costoInscripcionFinal > 0) {
+      await axios.post("http://localhost:7000/api/modalidad/sumarpago", { 
+        monto: 0, // No suma meses, solo registra el pago
+        id, 
+        costo: costoInscripcionFinal,
+        concepto: "Inscripción"
+      });
+    }
+
+    // 2. Registrar pago de modalidad (solo si hay modalidad seleccionada y costo > 0)
+    if (costoModalidad && costoModalidadFinal > 0) {
+      const mesesAPagar = esAnualidad ? 12 : 1;
+      
+      await axios.post("http://localhost:7000/api/modalidad/sumarpago", { 
+        monto: mesesAPagar, // Suma los meses correspondientes
+        id, 
+        costo: costoModalidadFinal,
+        concepto: esAnualidad ? "Anualidad" : "Mensualidad"
+      });
+    }
+
+    console.log("Pagos detallados registrados exitosamente", {
+      inscripcion: costoInscripcionFinal,
+      modalidad: costoModalidadFinal,
+      esAnualidad,
+      montoPersonalizado: montoTotalPersonalizado
+    });
+  } catch (error) {
+    console.error("Error al registrar los pagos detallados:", error);
+    toast.error("Hubo un error al registrar los pagos");
   }
 };
   return (
@@ -242,9 +354,9 @@ const sumarPagosRealizados = async (id, monto) => {
             {/* Campo para seleccionar la modalidad */}
             <div className="form-group">
                 <div className="input-wrapper">
-                  <label htmlFor="id_modalidad">Modalidad</label>
+                  <label htmlFor="id_modalidad">Modalidad (Opcional)</label>
                   <select id="id_modalidad" value={form.id_modalidad} onChange={handleChange}>
-                    <option value="">Seleccionar una modalidad</option>
+                    <option value="">Sin modalidad (solo inscripción)</option>
                     {modalidades.map((modalidad) => (
                       <option key={modalidad._id} value={modalidad._id}>
                         {modalidad.nombre} - {modalidad.horarios}
@@ -259,16 +371,13 @@ const sumarPagosRealizados = async (id, monto) => {
               <div className="info-pago-box">
                 <h4>📅 Información de Pagos</h4>
                 <p><strong>Día de cobro mensual:</strong> Día {diaCobroMensual} de cada mes</p>
-                <p><strong>Próxima fecha de pago:</strong> {new Date(proximaFechaPago).toLocaleDateString('es-MX', { 
-                  year: 'numeric', 
-                  month: 'long', 
-                  day: 'numeric' 
-                })}</p>
               </div>
             )}
             
             <div className="alumno-buttons">
-              <button type="submit" className="button">Agregar</button>
+              <button type="submit" className="button">
+                {form.id_modalidad ? "Continuar con Pago" : "Registrar Alumno"}
+              </button>
             </div>
           </form>
         </div>
@@ -276,42 +385,225 @@ const sumarPagosRealizados = async (id, monto) => {
       {mostrarModal && (
   <div className="modal">
     <div className="modal-content">
-      <h3>Opciones de pago</h3>
-      <p>¿Cómo desea registrar el pago?</p>
-      {/* Aquí mostramos el costo */}
-      <p><strong>Costo de inscripción:</strong> $0</p>
-      <p><strong>Costo de la modalidad:</strong> ${costoModalidad}</p>
-      <p><strong>Total a pagar:</strong> ${0 + costoModalidad}</p>
-      <p><strong>Costo de la anualidad:</strong> ${costoModalidad * 11}</p>
+      <h3>Opciones de pago - {modalidadSeleccionada?.nombre || "Modalidad"}</h3>
+      <p>{modalidadSeleccionada ? 
+          `Alumno: ${form.nombre} - Modalidad: ${modalidadSeleccionada.nombre}` : 
+          `Registrando alumno: ${form.nombre}`}
+      </p>
+      
+      {/* Selección de tipo de pago */}
+      <div style={{ margin: '15px 0' }}>
+        <label style={{ display: 'block', marginBottom: '10px', fontWeight: 'bold' }}>
+          Seleccione el tipo de pago:
+        </label>
+        <div style={{ display: 'flex', gap: '10px', marginBottom: '15px' }}>
+          {costoModalidad ? (
+            <>
+              <button
+                onClick={() => setTipoSeleccionado('mensual')}
+                style={{
+                  padding: '8px 16px',
+                  backgroundColor: tipoSeleccionado === 'mensual' ? '#3b82f6' : '#e5e7eb',
+                  color: tipoSeleccionado === 'mensual' ? 'white' : '#374151',
+                  border: 'none',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  flex: 1
+                }}
+              >
+                💰 Pago Mensual
+              </button>
+              <button
+                onClick={() => setTipoSeleccionado('anual')}
+                style={{
+                  padding: '8px 16px',
+                  backgroundColor: tipoSeleccionado === 'anual' ? '#3b82f6' : '#e5e7eb',
+                  color: tipoSeleccionado === 'anual' ? 'white' : '#374151',
+                  border: 'none',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  flex: 1
+                }}
+              >
+                📅 Pago Anual
+              </button>
+            </>
+          ) : (
+            <button
+              onClick={() => setTipoSeleccionado('inscripcion')}
+              style={{
+                padding: '8px 16px',
+                backgroundColor: tipoSeleccionado === 'inscripcion' ? '#3b82f6' : '#e5e7eb',
+                color: tipoSeleccionado === 'inscripcion' ? 'white' : '#374151',
+                border: 'none',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                width: '100%'
+              }}
+            >
+              📝 Solo Inscripción
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Información de costos */}
+      <div style={{ backgroundColor: '#f8fafc', padding: '15px', borderRadius: '8px', margin: '15px 0' }}>
+        <p><strong>Costo de inscripción:</strong> ${costoInscripcion.toFixed(2)}</p>
+        {costoModalidad && tipoSeleccionado === 'mensual' && (
+          <>
+            <p><strong>Costo de modalidad (1 mes):</strong> ${costoModalidad}</p>
+            <p><strong>Total calculado:</strong> ${(costoInscripcion + parseFloat(costoModalidad || 0)).toFixed(2)}</p>
+          </>
+        )}
+        {costoModalidad && tipoSeleccionado === 'anual' && (
+          <>
+            <p><strong>Costo modalidad (11 meses):</strong> ${(costoModalidad * 11).toFixed(2)}</p>
+            <p><strong>Total calculado:</strong> ${(costoInscripcion + (costoModalidad * 11)).toFixed(2)}</p>
+          </>
+        )}
+        {tipoSeleccionado === 'inscripcion' && (
+          <p><strong>Total calculado:</strong> ${costoInscripcion.toFixed(2)}</p>
+        )}
+      </div>
+
+      {/* Campo de monto personalizable */}
+      {tipoSeleccionado && (
+        <div style={{ margin: '15px 0' }}>
+          <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>
+            💰 Monto a cobrar (editable):
+          </label>
+          <input
+            type="number"
+            step="0.01"
+            min="0"
+            value={
+              montoPersonalizado !== undefined 
+                ? montoPersonalizado 
+                : tipoSeleccionado === 'mensual'
+                  ? (costoInscripcion + parseFloat(costoModalidad || 0)).toFixed(2)
+                  : tipoSeleccionado === 'anual'
+                    ? (costoInscripcion + (costoModalidad * 11)).toFixed(2)
+                    : costoInscripcion.toFixed(2)
+            }
+            onChange={(e) => {
+              const nuevoMonto = parseFloat(e.target.value) || 0;
+              setMontoPersonalizado(nuevoMonto);
+            }}
+            style={{
+              width: '100%',
+              padding: '8px 12px',
+              border: '2px solid #3b82f6',
+              borderRadius: '6px',
+              fontSize: '16px',
+              fontWeight: 'bold',
+              textAlign: 'center',
+              backgroundColor: '#f0f9ff'
+            }}
+            placeholder="0.00"
+          />
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '5px' }}>
+            <small style={{ color: '#6b7280', fontSize: '12px' }}>
+              Puedes modificar el monto para aplicar descuentos o ajustes
+            </small>
+            {montoPersonalizado !== undefined && (
+              <button
+                onClick={() => setMontoPersonalizado(undefined)}
+                style={{
+                  padding: '4px 8px',
+                  fontSize: '12px',
+                  backgroundColor: '#f59e0b',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '4px',
+                  cursor: 'pointer'
+                }}
+              >
+                🔄 Restablecer
+              </button>
+            )}
+          </div>
+        </div>
+      )}
 
       <div className="pago-opciones">
-    <button
-        className="pago-button"
-        onClick={() => {
-          if (window.confirm("¿Está seguro de confirmar el pago?")) {
-              handlePagoEfectivoOTransferencia();
+        {tipoSeleccionado && (
+          <button
+            className="pago-button"
+            onClick={async () => {
+              const montoFinal = montoPersonalizado !== undefined 
+                ? montoPersonalizado 
+                : tipoSeleccionado === 'mensual'
+                  ? (costoInscripcion + parseFloat(costoModalidad || 0))
+                  : tipoSeleccionado === 'anual'
+                    ? (costoInscripcion + (costoModalidad * 11))
+                    : costoInscripcion;
+              
+              const montoCalculado = tipoSeleccionado === 'mensual'
+                ? (costoInscripcion + parseFloat(costoModalidad || 0)).toFixed(2)
+                : tipoSeleccionado === 'anual'
+                  ? (costoInscripcion + (costoModalidad * 11)).toFixed(2)
+                  : costoInscripcion.toFixed(2);
+              
+              const esMontoModificado = montoPersonalizado !== undefined;
+              
+              let mensaje = `¿Está seguro de confirmar el ${
+                tipoSeleccionado === 'mensual' ? 'pago mensual' : 
+                tipoSeleccionado === 'anual' ? 'pago anual' : 
+                'registro (solo inscripción)'
+              } de $${montoFinal.toFixed(2)}?`;
+              
+              if (esMontoModificado) {
+                mensaje += `\n\n(Monto original: $${montoCalculado} - Monto modificado aplicado)`;
+              }
+              
+              if (window.confirm(mensaje)) {
+                try {
+                  const id = await registrarAlumno();
+                  if (id) {
+                    // Registrar pagos con el monto personalizado
+                    if (tipoSeleccionado === 'anual') {
+                      await registrarPagosDetallados(id, true, montoFinal);
+                      toast.success("Anualidad registrada con éxito");
+                    } else {
+                      await registrarPagosDetallados(id, false, montoFinal);
+                      toast.success("Pago registrado con éxito");
+                    }
+                    setMostrarModal(false);
+                    setMontoPersonalizado(undefined);
+                    setTipoSeleccionado("");
+                  }
+                } catch (error) {
+                  console.error("Error en el proceso:", error);
+                  toast.error("Error en el proceso de registro");
+                }
+              }
+            }}
+            style={{
+              width: '100%',
+              padding: '12px',
+              backgroundColor: '#10b981',
+              color: 'white',
+              border: 'none',
+              borderRadius: '8px',
+              fontSize: '16px',
+              fontWeight: 'bold',
+              cursor: 'pointer'
+            }}
+          >
+            {tipoSeleccionado === 'mensual' && '💰 Confirmar Pago Mensual'}
+            {tipoSeleccionado === 'anual' && '📅 Confirmar Pago Anual'}
+            {tipoSeleccionado === 'inscripcion' && '📝 Confirmar Solo Inscripción'}
+            {montoPersonalizado !== undefined && ` - $${montoPersonalizado.toFixed(2)}`}
+          </button>
+        )}
+      </div>
+            <button className="cerrar-button" onClick={() => {
               setMostrarModal(false);
-          }
-        }}
-    >
-        Confirmar Pago de mensualidad
-    </button>
-     <button className="pago-button" onClick={async () => {
-          if (window.confirm("¿Está seguro de confirmar el pago?")) {
-              handlePagoEfectivoOTransferencia();
-              const id = await registrarAlumno();
-          if (id) {
-            await sumarPagosRealizados(id, 12); // Registrar 12 pagos
-            toast.success("Anualidad registrada con éxito");
-            setMostrarModal(false);
-          }
-          }
-          
-        }}>
-          Pago de anualidad
-        </button>
-            </div>
-            <button className="cerrar-button" onClick={() => setMostrarModal(false)}>Cerrar</button>
+              setMontoPersonalizado(undefined);
+              setTipoSeleccionado("");
+              setModalidadSeleccionada(null); // Limpiar modalidad seleccionada
+            }}>Cerrar</button>
           </div>
         </div>
       )}

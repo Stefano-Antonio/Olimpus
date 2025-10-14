@@ -1,6 +1,9 @@
+/* ===== LAYOUT PRINCIPAL CON SCROLL ===== */
 .alumno-layout {
   display: flex;
   width: 100%;
+  min-width: 320px; /* Ancho mínimo para móviles */
+  overflow-x: auto; /* Permite scroll horizontal si es necesario */
 }
 
 .pilar {
@@ -315,4 +318,201 @@ textarea {
 
 .info-pago-box strong {
   color: #1e40af;
+}
+
+/* ===== RESPONSIVE DESIGN - SCROLL LIBRE EN MÓVILES ===== */
+@media (max-width: 768px) {
+  .alumno-layout {
+    overflow: auto; /* Scroll libre en todas las direcciones */
+    min-width: auto; /* Remover ancho mínimo */
+    -webkit-overflow-scrolling: touch; /* Scroll suave en iOS */
+  }
+  
+  .alumno-container {
+    padding: 10px;
+    min-height: auto;
+    overflow: visible;
+  }
+  
+  .alumno-container h1 {
+    font-size: 1.8rem;
+    margin: 20px 0;
+  }
+  
+  .form-group {
+    flex-direction: column; /* Campos apilados verticalmente */
+    margin-bottom: 15px;
+  }
+  
+  .input-wrapper {
+    margin: 0 0 10px 0; /* Espaciado vertical */
+    width: 100%;
+  }
+  
+  .input-wrapper input,
+  .input-wrapper select {
+    width: 100%;
+    padding: 12px;
+    font-size: 16px; /* Evitar zoom en iOS */
+  }
+  
+  /* Modal responsive con scroll libre */
+  .modal {
+    padding: 10px;
+    overflow: auto;
+  }
+  
+  .modal-content {
+    max-width: 95vw;
+    max-height: 95vh;
+    overflow: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: 15px;
+  }
+  
+  .pago-opciones {
+    flex-direction: column;
+    gap: 10px;
+  }
+  
+  .pago-button {
+    width: 100%;
+    padding: 15px;
+    font-size: 14px;
+  }
+  
+  /* Pilares ocultos en móviles para más espacio */
+  .pilar {
+    display: none;
+  }
+}
+
+@media (max-width: 480px) {
+  .alumno-container {
+    padding: 5px;
+  }
+  
+  .alumno-container h1 {
+    font-size: 1.5rem;
+  }
+  
+  .input-wrapper label {
+    font-size: 1rem;
+  }
+  
+  .input-wrapper input,
+  .input-wrapper select {
+    padding: 10px;
+    font-size: 16px;
+  }
+  
+  .modal-content {
+    padding: 10px;
+  }
+  
+  .modal-content h3 {
+    font-size: 1.2rem;
+  }
+  
+  .modal-content p {
+    font-size: 0.9rem;
+  }
+}
+
+/* ===== ESTILOS PARA MONTO PERSONALIZADO ===== */
+.monto-personalizado-section {
+  margin: 20px 0;
+  padding: 15px;
+  background-color: #f8fafc;
+  border-radius: 8px;
+  border-left: 4px solid #3b82f6;
+}
+
+.monto-personalizado-input {
+  margin-bottom: 15px;
+}
+
+.monto-personalizado-input label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: bold;
+  color: #374151;
+  font-size: 1rem;
+}
+
+.monto-input-container {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: 300px;
+}
+
+.monto-input-container input {
+  flex: 1;
+  padding: 8px 12px;
+  border: 2px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 16px;
+  transition: border-color 0.2s;
+  background-color: white;
+}
+
+.monto-input-container input:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.monto-input-container span {
+  font-weight: bold;
+  color: #6b7280;
+  font-size: 14px;
+}
+
+.reset-monto-btn {
+  padding: 6px 10px;
+  background-color: #6b7280;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background-color 0.2s;
+  min-width: 32px;
+  height: 32px;
+}
+
+.reset-monto-btn:hover {
+  background-color: #4b5563;
+}
+
+.monto-total-display {
+  background-color: #ecfdf5;
+  border: 2px solid #10b981;
+  border-radius: 6px;
+  padding: 12px;
+  text-align: center;
+}
+
+.monto-total-display h4 {
+  margin: 0;
+  color: #065f46;
+  font-size: 1.2rem;
+  font-weight: bold;
+}
+
+/* Responsive para monto personalizado */
+@media (max-width: 768px) {
+  .monto-input-container {
+    max-width: 100%;
+    flex-wrap: wrap;
+  }
+  
+  .monto-personalizado-section {
+    padding: 10px;
+  }
+  
+  .monto-total-display h4 {
+    font-size: 1.1rem;
+  }
 }

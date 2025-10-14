@@ -17,7 +17,13 @@ router.get('/', async (req, res) => {
 // Actualizar la configuración del sistema
 router.put('/', async (req, res) => {
   try {
-    const { fechaCobroMensual, diasGraciaParaPago, montoRecargoTardio, tipoRecargo } = req.body;
+        const { 
+      fechaCobroMensual, 
+      costoInscripcion,
+      diasGraciaParaPago, 
+      montoRecargoTardio, 
+      tipoRecargo 
+    } = req.body;
     
     // Validaciones
     if (fechaCobroMensual && (fechaCobroMensual < 1 || fechaCobroMensual > 31)) {
@@ -30,6 +36,7 @@ router.put('/', async (req, res) => {
       // Crear nueva configuración si no existe
       config = new ConfiguracionSistema({
         fechaCobroMensual: fechaCobroMensual || 5,
+        costoInscripcion: costoInscripcion || 0,
         diasGraciaParaPago: diasGraciaParaPago || 5,
         montoRecargoTardio: montoRecargoTardio || 50,
         tipoRecargo: tipoRecargo || 'fijo'
@@ -37,6 +44,7 @@ router.put('/', async (req, res) => {
     } else {
       // Actualizar configuración existente
       if (fechaCobroMensual !== undefined) config.fechaCobroMensual = fechaCobroMensual;
+      if (costoInscripcion !== undefined) config.costoInscripcion = costoInscripcion;
       if (diasGraciaParaPago !== undefined) config.diasGraciaParaPago = diasGraciaParaPago;
       if (montoRecargoTardio !== undefined) config.montoRecargoTardio = montoRecargoTardio;
       if (tipoRecargo !== undefined) config.tipoRecargo = tipoRecargo;

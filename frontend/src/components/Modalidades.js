@@ -21,9 +21,41 @@ function Modalidades() {
       viernes: '',
       sabado: ''
     },
-    costo: ''
+    costo: '',
+    id_entrenador: ''
   });
 
+  // Estado para entrenadores y modalidades
+  const [entrenadores, setEntrenadores] = useState([]);
+  const [modalidades, setModalidades] = useState([]);
+  const [editandoModalidad, setEditandoModalidad] = useState(null);
+  const [modoEdicion, setModoEdicion] = useState(false);
+
+  useEffect(() => {
+    cargarEntrenadores();
+    cargarModalidades();
+  }, []);
+
+  const cargarEntrenadores = async () => {
+    try {
+      const response = await axios.get('http://localhost:7000/api/entrenadores');
+      setEntrenadores(response.data);
+    } catch (error) {
+      console.error('Error al cargar entrenadores:', error);
+      toast.error('Error al cargar entrenadores');
+    }
+  };
+
+  const cargarModalidades = async () => {
+    try {
+      const response = await axios.get('http://localhost:7000/api/modalidad');
+      console.log('Modalidades cargadas:', response.data);
+      setModalidades(response.data);
+    } catch (error) {
+      console.error('Error al cargar modalidades:', error);
+      toast.error('Error al cargar modalidades');
+    }
+  };
 
   const handleLogout = () => {
     localStorage.removeItem("isAuthenticated");
@@ -56,29 +88,95 @@ function Modalidades() {
     navigate(-1); // Navegar a la página anterior
   };
 
+  const editarModalidad = (modalidad) => {
+    // Encontrar el entrenador por nombre para obtener su ID
+    const entrenadorEncontrado = entrenadores.find(e => e.nombre === modalidad.entrenador);
+    
+    // Reconstruir los horarios desde el string formateado
+    const horariosReconstruidos = {
+      lunes: '',
+      martes: '',
+      miercoles: '',
+      jueves: '',
+      viernes: '',
+      sabado: ''
+    };
+
+    setFormData({
+      nombre: modalidad.nombre,
+      horarios: horariosReconstruidos,
+      costo: modalidad.costo.toString(),
+      id_entrenador: entrenadorEncontrado ? entrenadorEncontrado._id : ''
+    });
+    
+    setEditandoModalidad(modalidad._id);
+    setModoEdicion(true);
+    
+    // Scroll hacia el formulario
+    document.querySelector('.centered-form').scrollIntoView({ behavior: 'smooth' });
+  };
+
+  const cancelarEdicion = () => {
+    setFormData({
+      nombre: '',
+      horarios: { lunes: '', martes: '', miercoles: '', jueves: '', viernes: '', sabado: '' },
+      costo: '',
+      id_entrenador: ''
+    });
+    setEditandoModalidad(null);
+    setModoEdicion(false);
+  };
+
+  const eliminarModalidad = async (id, nombre) => {
+    if (!window.confirm(`¿Está seguro de eliminar la modalidad "${nombre}"?`)) {
+      return;
+    }
+
+    try {
+      await axios.delete(`http://localhost:7000/api/modalidad/${id}`);
+      await cargarModalidades();
+      toast.success('Modalidad eliminada exitosamente');
+    } catch (error) {
+      console.error('Error al eliminar modalidad:', error);
+      toast.error('Error al eliminar modalidad');
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-
-      // Reemplaza valores vacíos en horarios con null
+      // Reemplaza valores vacíos en horarios con null y maneja entrenador
       const finalData = {
         ...formData,
         horarios: Object.fromEntries(
           Object.entries(formData.horarios).map(([key, value]) => [key, value === "" ? null : value])
-        )
+        ),
+        id_entrenador: formData.id_entrenador || null
       };
 
-      const response = await axios.post('http://localhost:7000/api/modalidad', finalData);
-      console.log("Modalidad actualizada:", response.data);
-      toast.success('Modalidad creada con éxito');
-      setFormData({
-        nombre: '',
-        horarios: { lunes: '', martes: '', miercoles: '', jueves: '', viernes: '', sabado: '' },
-        costo: ''
-      });
+      if (modoEdicion) {
+        // Actualizar modalidad existente
+        const response = await axios.put(`http://localhost:7000/api/modalidad/${editandoModalidad}`, finalData);
+        console.log("Modalidad actualizada:", response.data);
+        toast.success('Modalidad actualizada con éxito');
+        cancelarEdicion();
+      } else {
+        // Crear nueva modalidad
+        const response = await axios.post('http://localhost:7000/api/modalidad', finalData);
+        console.log("Modalidad creada:", response.data);
+        toast.success('Modalidad creada con éxito');
+        setFormData({
+          nombre: '',
+          horarios: { lunes: '', martes: '', miercoles: '', jueves: '', viernes: '', sabado: '' },
+          costo: '',
+          id_entrenador: ''
+        });
+      }
+      
+      await cargarModalidades(); // Recargar la lista
     } catch (error) {
-      console.error('Error al crear la modalidad:', error);
-      toast.error('Hubo un error al crear la modalidad, o ya existe esta modalidad con esos horarios');
+      console.error('Error al procesar la modalidad:', error);
+      toast.error(modoEdicion ? 'Error al actualizar modalidad' : 'Error al crear modalidad');
     }
   };
     
@@ -90,7 +188,7 @@ return (
       <div className="top-left">
         <button className="back-button" onClick={handleBack}>Regresar</button>
       </div>
-      <h1>Agregar modalidad</h1>
+      <h1>{modoEdicion ? 'Editar Modalidad' : 'Agregar Modalidad'}</h1>
       <div className="materia-content">
         <form onSubmit={handleSubmit} className="centered-form">
           <div className="form-group">
@@ -117,6 +215,23 @@ return (
                 min="0"
                 step="0.01"
               />
+            </div>
+          </div>
+          <div className="form-group">
+            <div className="input-wrapper short-field">
+              <label htmlFor="id_entrenador">Entrenador</label>
+              <select 
+                id="id_entrenador" 
+                value={formData.id_entrenador} 
+                onChange={handleChange}
+              >
+                <option value="">Sin entrenador asignado</option>
+                {entrenadores.map((entrenador) => (
+                  <option key={entrenador._id} value={entrenador._id}>
+                    {entrenador.nombre}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
           <div className="form-group">
@@ -148,11 +263,92 @@ return (
             ))}
           </div>
           <div className="materia-buttons">
-            <button type="submit" className="button">Agregar</button>
+            <button type="submit" className="button">
+              {modoEdicion ? 'Actualizar' : 'Agregar'}
+            </button>
+            {modoEdicion && (
+              <button type="button" onClick={cancelarEdicion} className="button button-secondary">
+                Cancelar
+              </button>
+            )}
           </div>
         </form>
-        <div className="materia-buttons">
-        </div>
+      </div>
+
+      {/* Tabla de modalidades existentes */}
+      <div className="modalidades-existentes">
+        <h2>Modalidades Existentes ({modalidades.length})</h2>
+        {console.log('Estado actual de modalidades:', modalidades)}
+        {modalidades.length === 0 ? (
+          <p className="no-modalidades">No hay modalidades registradas</p>
+        ) : (
+          <div className="table-container">
+            <table className="modalidades-table">
+              <thead>
+                <tr>
+                  <th>Nombre</th>
+                  <th>Horarios</th>
+                  <th>Costo</th>
+                  <th>Entrenador</th>
+                  <th>Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                {modalidades.map((modalidad) => (
+                  <tr key={modalidad._id}>
+                    <td>{modalidad.nombre}</td>
+                    <td>{modalidad.horarios}</td>
+                    <td>${modalidad.costo}</td>
+                    <td>
+                      <select
+                        value={modalidad.id_entrenador || ''}
+                        onChange={async (e) => {
+                          try {
+                            const nuevoEntrenadorId = e.target.value || null;
+                            await axios.put(`http://localhost:7000/api/modalidad/${modalidad._id}`, {
+                              ...modalidad,
+                              id_entrenador: nuevoEntrenadorId
+                            });
+                            await cargarModalidades();
+                            toast.success('Entrenador actualizado');
+                          } catch (error) {
+                            toast.error('Error al actualizar entrenador');
+                          }
+                        }}
+                        className="entrenador-select"
+                      >
+                        <option value="">Sin entrenador</option>
+                        {entrenadores.map((entrenador) => (
+                          <option key={entrenador._id} value={entrenador._id}>
+                            {entrenador.nombre}
+                          </option>
+                        ))}
+                      </select>
+                    </td>
+                    <td>
+                      <div className="modalidad-acciones">
+                        <button
+                          onClick={() => editarModalidad(modalidad)}
+                          className="btn-editar-modalidad"
+                          title="Editar modalidad"
+                        >
+                          ✏️
+                        </button>
+                        <button
+                          onClick={() => eliminarModalidad(modalidad._id, modalidad.nombre)}
+                          className="btn-eliminar-modalidad"
+                          title="Eliminar modalidad"
+                        >
+                          🗑️
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </div>
     {mostrarModal && (

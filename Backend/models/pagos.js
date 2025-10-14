@@ -14,12 +14,14 @@ const PagoSchema = new Schema({
   
   // === INFORMACIÓN DEL PAGO ===
   costo: { type: Number, required: true }, // Monto pagado en pesos mexicanos
-  fecha: { type: Date, default: Date.now } // Timestamp automático para reportes diarios
+  fecha: { type: Date, default: Date.now }, // Timestamp automático para reportes diarios
+  concepto: { type: String, default: 'Mensualidad' } // Tipo de pago: Inscripción, Mensualidad, Anualidad
   
   // NOTA PARA IA: Este modelo se usa principalmente para:
   // 1. Generar cortes diarios de ingresos
   // 2. Historial detallado de pagos por alumno
   // 3. Auditoría de transacciones
+  // 4. Diferenciar entre tipos de pago (inscripción vs mensualidad)
 });
 
 module.exports = mongoose.model('Pago', PagoSchema);

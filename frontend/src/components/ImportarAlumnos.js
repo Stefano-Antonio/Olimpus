@@ -4,9 +4,10 @@ import { toast } from 'react-toastify';
 import './ImportarAlumnos.css';
 
 /**
- * Componente para importar alumnos desde archivo Excel
+ * Componente para importar alumnos desde archivo Excel formato Olimpus
  * Formato esperado:
- * | Nombre | Fecha Nacimiento | Teléfono | Correo | Modalidad | Observaciones |
+ * | MATRICULA | NOMBRE | APELLIDO | NUMERO TELEFONO | DISCIPLINA | ENTRENADOR | GRUPO |
+ * | MENSUALIDAD | INSCRIPCION | MAY | JUN | JUL | AGO | SEP | OCT | NOV | DIC | FECHA DE INSCRIPCION |
  */
 const ImportarAlumnos = ({ onImportComplete }) => {
   const [file, setFile] = useState(null);
@@ -94,9 +95,9 @@ const ImportarAlumnos = ({ onImportComplete }) => {
   return (
     <div className="importar-alumnos-container">
       <div className="importar-header">
-        <h3>Importar Alumnos desde Excel</h3>
+        <h3>Importar Alumnos desde Excel - Formato Olimpus</h3>
         <p className="formato-requerido">
-          Formato requerido: Nombre | Fecha Nacimiento | Teléfono | Correo | Modalidad | Observaciones
+          Formato requerido: MATRICULA | NOMBRE | APELLIDO | NUMERO TELEFONO | DISCIPLINA | ENTRENADOR | GRUPO | MENSUALIDAD | INSCRIPCION | MAY-DIC | FECHA DE INSCRIPCION
         </p>
       </div>
       
@@ -168,13 +169,15 @@ const ImportarAlumnos = ({ onImportComplete }) => {
       </div>
       
       <div className="importar-tips">
-        <h5>💡 Consejos:</h5>
+        <h5>💡 Consejos para el formato Olimpus:</h5>
         <ul>
           <li>El archivo debe estar en formato Excel (.xls o .xlsx)</li>
-          <li>La primera fila debe contener los encabezados de columna</li>
-          <li>El nombre de la modalidad debe coincidir exactamente con las modalidades existentes</li>
-          <li>El formato de fecha puede ser DD/MM/YYYY o YYYY-MM-DD</li>
-          <li>No se importarán alumnos con correos duplicados</li>
+          <li>La primera fila debe contener los encabezados exactos del formato Olimpus</li>
+          <li>DISCIPLINA debe coincidir con las modalidades existentes en el sistema</li>
+          <li>Marcar con "X" los meses pagados (MAY, JUN, JUL, etc.)</li>
+          <li>FECHA DE INSCRIPCION en formato DD/MM/YYYY</li>
+          <li>MATRICULA es opcional, se generará automáticamente si está vacía</li>
+          <li>No se importarán alumnos duplicados (mismo nombre y teléfono)</li>
         </ul>
       </div>
     </div>

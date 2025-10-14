@@ -21,6 +21,12 @@ const Alumnos = () => {
   const [fechaCorte, setFechaCorte] = useState(new Date().toISOString().split('T')[0]);
   const [pagosCorte, setPagosCorte] = useState([]);
   const [totalCorte, setTotalCorte] = useState(0);
+  const [resumenCorte, setResumenCorte] = useState({});
+  // Estados para importación de Excel
+  const [mostrarImportModal, setMostrarImportModal] = useState(false);
+  const [archivoExcel, setArchivoExcel] = useState(null);
+  const [importandoExcel, setImportandoExcel] = useState(false);
+  const [resultadoImport, setResultadoImport] = useState(null);
   // Removed unused declaration
   const navigate = useNavigate();
 
@@ -48,6 +54,23 @@ useEffect(() => {
     fetchData();
 }, []);
 
+// Efecto para manejar el scroll del body cuando el modal esté abierto
+useEffect(() => {
+    if (mostrarImportModal || mostrarModal || mostrarPagoModal) {
+        document.body.classList.add('modal-open');
+        document.body.style.overflow = 'hidden';
+    } else {
+        document.body.classList.remove('modal-open');
+        document.body.style.overflow = 'auto';
+    }
+    
+    // Cleanup function para restaurar el scroll al desmontar
+    return () => {
+        document.body.classList.remove('modal-open');
+        document.body.style.overflow = 'auto';
+    };
+}, [mostrarImportModal, mostrarModal, mostrarPagoModal]);
+
   const calcularEdad = (fechaNacimiento) => {
     const hoy = new Date();
     const nacimiento = new Date(fechaNacimiento);
@@ -61,12 +84,24 @@ useEffect(() => {
 
   const obtenerCorteDelDia = async () => {
     try {
-        const fecha = new Date(fechaCorte);
-      const res = await axios.get(`http://localhost:7000/api/modalidad/corte-dia?fecha=${fecha.toISOString}`);
-      setPagosCorte(res.data.pagos); // Actualiza el estado con los pagos
-      setTotalCorte(res.data.totalPagado); // Actualiza el estado con el total
+        // Enviar la fecha en formato YYYY-MM-DD directamente, sin conversión UTC
+      console.log('Solicitando corte para la fecha:', fechaCorte);
+      const res = await axios.get(`http://localhost:7000/api/modalidad/corte-dia?fecha=${fechaCorte}`);
+      console.log('Respuesta del corte del día:', res.data); // Debug
+      setPagosCorte(res.data.pagos || []); // Actualiza el estado con los pagos
+      setTotalCorte(res.data.totalPagado || 0); // Actualiza el estado con el total
+      setResumenCorte(res.data.resumen || {}); // Actualiza el resumen por concepto
+      
+      // Mostrar mensaje informativo
+      const fechaFormateada = new Date(fechaCorte).toLocaleDateString('es-MX');
+      if (res.data.pagos && res.data.pagos.length > 0) {
+        toast.info(`Mostrando ${res.data.pagos.length} pago(s) del ${fechaFormateada}`);
+      } else {
+        toast.info(`No se encontraron pagos para el ${fechaFormateada}`);
+      }
     } catch (error) {
       console.error("Error al obtener el corte:", error);
+      toast.error("Error al obtener el corte del día");
     }
   };
   
@@ -89,8 +124,15 @@ useEffect(() => {
   };
 
   const obtenerNombreModalidad = (idModalidad) => {
+    if (!idModalidad) return 'Sin modalidad';
     const modalidad = modalidades.find(m => m._id === idModalidad);
-    return modalidad ? modalidad.nombre : 'Modalidad desconocida';
+    return modalidad ? modalidad.nombre : 'Sin modalidad';
+  };
+
+  const obtenerNombreEntrenador = (idModalidad) => {
+    if (!idModalidad) return 'Sin asignar';
+    const modalidad = modalidades.find(m => m._id === idModalidad);
+    return modalidad && modalidad.entrenador ? modalidad.entrenador : 'Sin asignar';
   };
 
   const setModal = (id) => {
@@ -125,6 +167,113 @@ useEffect(() => {
     }
   }
 
+  const handleDescargarPlantilla = async () => {
+    try {
+      const response = await axios.get('http://localhost:7000/api/excel/plantilla', {
+        responseType: 'blob'
+      });
+      
+      // Crear un enlace temporal para descargar el archivo
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `plantilla_olimpus_${new Date().toISOString().split('T')[0]}.xlsx`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      
+      toast.success('Plantilla Excel descargada exitosamente');
+    } catch (error) {
+      console.error('Error al descargar plantilla:', error);
+      toast.error('Error al descargar la plantilla Excel');
+    }
+  }
+
+  // Funciones para importación de Excel
+  const handleArchivoExcelChange = (e) => {
+    const selectedFile = e.target.files[0];
+    
+    if (selectedFile) {
+      // Validar que sea un archivo Excel
+      const allowedTypes = [
+        'application/vnd.ms-excel',
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+      ];
+      
+      if (!allowedTypes.includes(selectedFile.type)) {
+        toast.error('Por favor selecciona un archivo Excel (.xls o .xlsx)');
+        return;
+      }
+      
+      // Validar tamaño (máximo 5MB)
+      if (selectedFile.size > 5 * 1024 * 1024) {
+        toast.error('El archivo es demasiado grande. Máximo 5MB');
+        return;
+      }
+      
+      setArchivoExcel(selectedFile);
+      setResultadoImport(null);
+    }
+  };
+
+  const handleImportarExcel = async () => {
+    if (!archivoExcel) {
+      toast.error('Por favor selecciona un archivo');
+      return;
+    }
+    
+    setImportandoExcel(true);
+    setResultadoImport(null);
+    
+    try {
+      const formData = new FormData();
+      formData.append('file', archivoExcel);
+      
+      const response = await axios.post('http://localhost:7000/api/excel/importar', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        }
+      });
+      
+      const { exitosos, fallidos, duplicados = 0, errores, registrosRechazados = [], totalProcesado } = response.data;
+      
+      setResultadoImport({
+        exitosos,
+        fallidos,
+        duplicados,
+        errores,
+        registrosRechazados,
+        totalProcesado
+      });
+      
+      // Mensajes más específicos
+      if (exitosos > 0) {
+        toast.success(`✅ ${exitosos} alumno(s) creado(s) exitosamente`);
+        await fetchData(); // Recargar la lista de alumnos
+      }
+      
+      if (duplicados > 0) {
+        toast.info(`🔄 ${duplicados} registro(s) ya existían (duplicados)`);
+      }
+      
+      if (fallidos > 0) {
+        toast.warning(`❌ ${fallidos} registro(s) con errores. Revisa los detalles abajo`);
+      }
+      
+    } catch (error) {
+      console.error('Error al importar alumnos:', error);
+      toast.error(error.response?.data?.message || 'Error al importar alumnos');
+    } finally {
+      setImportandoExcel(false);
+    }
+  };
+
+  const cerrarModalImport = () => {
+    setMostrarImportModal(false);
+    setArchivoExcel(null);
+    setResultadoImport(null);
+  };
+
   const handleDelete = async () => {
     try {
       await axios.delete(`http://localhost:7000/api/alumnos/${AlumnoAEliminar}`);
@@ -146,12 +295,36 @@ useEffect(() => {
             return;
         }
 
-        // 💡 Aquí se verifica que no tenga pagos pendientes
-        if (alumno.pago_pendiente > 0) {
-            toast.error("No se puede cambiar la modalidad porque el alumno tiene pagos pendientes.");
+        // 💡 Solo verificar pagos pendientes SI YA TIENE una modalidad asignada
+        const tieneModalidadAsignada = alumno.id_modalidad && 
+                                     (typeof alumno.id_modalidad === 'object' ? 
+                                      alumno.id_modalidad._id : 
+                                      alumno.id_modalidad);
+
+        if (tieneModalidadAsignada && alumno.pago_pendiente > 0) {
+            toast.error("No se puede cambiar la modalidad porque el alumno tiene pagos pendientes. Por favor, registre los pagos primero.");
             return;
         }
 
+        // Si selecciona "Sin modalidad" (valor vacío)
+        if (!nuevaModalidadId || nuevaModalidadId === "") {
+            if (tieneModalidadAsignada && alumno.pago_pendiente > 0) {
+                toast.error("No se puede quitar la modalidad porque el alumno tiene pagos pendientes.");
+                return;
+            }
+            
+            await axios.post(`http://localhost:7000/api/modalidad/cambiarModalidad`, {
+                idAlumno: alumnoId,
+                idModalidad: null,
+            });
+
+            await fetchData();
+            setCostoModalidad("");
+            toast.success("Modalidad removida con éxito");
+            return;
+        }
+
+        // Si selecciona una modalidad específica
         const selectedModalidad = modalidades.find(m => m._id === nuevaModalidadId);
 
         if (selectedModalidad) {
@@ -164,7 +337,7 @@ useEffect(() => {
 
             await fetchData();
 
-            toast.success("Modalidad actualizada con éxito");
+            toast.success(`Modalidad cambiada a "${selectedModalidad.nombre}" con éxito`);
         } else {
             setCostoModalidad("");
             toast.error("Modalidad seleccionada no válida");
@@ -180,19 +353,21 @@ useEffect(() => {
     return <div className="loading">Cargando información de alumnos...</div>;
   }
   const alumnosFiltrados = alumnos.filter(alumno => {
-    if (!alumno || !alumno.id_modalidad) return false;
+    if (!alumno) return false;
 
-    const modalidadId = alumno.id_modalidad._id || alumno.id_modalidad;
+    const modalidadId = alumno.id_modalidad ? (alumno.id_modalidad._id || alumno.id_modalidad) : null;
     const modalidad = obtenerNombreModalidad(modalidadId)?.toLowerCase() || "";
-    const horario = obtenerHorarioModalidad(modalidadId)?.toLowerCase() || "";
+    const horario = modalidadId ? obtenerHorarioModalidad(modalidadId)?.toLowerCase() || "" : "";
     const edad = calcularEdad(alumno.fecha_nacimiento)?.toString() || "";
+    const fechaInscripcion = new Date(alumno.fecha_inscripcion).toLocaleDateString('es-MX') || "";
 
     return (
         alumno.nombre?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         alumno.matricula?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         modalidad.includes(searchTerm.toLowerCase()) ||
         horario.includes(searchTerm.toLowerCase()) ||
-        edad.includes(searchTerm.toLowerCase())
+        edad.includes(searchTerm.toLowerCase()) ||
+        fechaInscripcion.includes(searchTerm.toLowerCase())
     );
 });
 
@@ -250,39 +425,73 @@ return (
             <div className="search-and-actions">
               <input
                   type="text"
-                  placeholder="Buscar por nombre, modalidad..."
+                  placeholder="Buscar por nombre, modalidad, fecha..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="search-bar"
               />
-              <button onClick={handleExportarExcel} className="btn-exportar">
-                📥 Descargar Excel
-              </button>
+              <div className="excel-actions">
+                <button onClick={handleDescargarPlantilla} className="btn-plantilla">
+                  📄 Plantilla Excel
+                </button>
+                <button onClick={() => setMostrarImportModal(true)} className="btn-importar">
+                  📤 Importar Excel
+                </button>
+                <button onClick={handleExportarExcel} className="btn-exportar">
+                  📥 Descargar Excel
+                </button>
+              </div>
             </div>
 
             {alumnosFiltrados.length > 0 ? (
                 <div className="alumno-scrollable-table">
                     <div className="corte-dia-section">
                     <div>
-                <h4>Corte del día</h4>
-                <input
-                    type="date"
-                    value={fechaCorte}
-                    onChange={(e) => setFechaCorte(e.target.value)}
-                />
-                <button onClick={obtenerCorteDelDia}>Ver corte</button>
+                <h4>Corte del día - {fechaCorte ? new Date(fechaCorte + 'T00:00:00').toLocaleDateString('es-MX') : 'Hoy'}</h4>
+                <div style={{ display: 'flex', gap: '10px', alignItems: 'center', marginBottom: '10px' }}>
+                  <input
+                      type="date"
+                      value={fechaCorte}
+                      onChange={(e) => setFechaCorte(e.target.value)}
+                      style={{ padding: '5px' }}
+                  />
+                  <button onClick={obtenerCorteDelDia} style={{ padding: '5px 15px' }}>
+                    📊 Ver corte
+                  </button>
+                  <button 
+                    onClick={() => setFechaCorte(new Date().toISOString().split('T')[0])}
+                    style={{ padding: '5px 15px', backgroundColor: '#10b981', color: 'white', border: 'none', borderRadius: '4px' }}
+                  >
+                    📅 Hoy
+                  </button>
+                </div>
 
-                {totalCorte && (
-                    <p>Total pagado del día: ${totalCorte}</p>
+                {totalCorte > 0 && (
+                    <div className="total-corte">
+                        <p><strong>Total pagado del día: ${totalCorte}</strong></p>
+                        {Object.keys(resumenCorte).length > 0 && (
+                            <div className="resumen-conceptos">
+                                <h6>Resumen por concepto:</h6>
+                                {Object.entries(resumenCorte).map(([concepto, datos]) => (
+                                    <p key={concepto} className="concepto-resumen">
+                                        <span className={`concepto-badge ${concepto.toLowerCase()}`}>
+                                            {concepto}
+                                        </span>: {datos.cantidad} pago{datos.cantidad !== 1 ? 's' : ''} - ${datos.total.toFixed(2)}
+                                    </p>
+                                ))}
+                            </div>
+                        )}
+                    </div>
                 )}
 
                 {pagosCorte.length > 0 ? (
                     <div className="corte-result">
-                    <h5>Pagos registrados el {fechaCorte}</h5>
+                    <h5>📋 {pagosCorte.length} pago(s) registrado(s) el {new Date(fechaCorte + 'T00:00:00').toLocaleDateString('es-MX')}</h5>
                     <table>
                         <thead>
                         <tr>
                             <th>Alumno</th>
+                            <th>Concepto</th>
                             <th>Monto</th>
                             <th>Fecha</th>
                         </tr>
@@ -291,6 +500,11 @@ return (
                         {pagosCorte.map((pago) => (
                             <tr key={pago._id}>
                             <td>{pago.alumno?.nombre || "Desconocido"}</td>
+                            <td>
+                                <span className={`concepto-badge ${pago.concepto?.toLowerCase() || 'mensualidad'}`}>
+                                  {pago.concepto || 'Mensualidad'}
+                                </span>
+                            </td>
                             <td>${pago.costo}</td>
                             <td>{new Date(pago.fecha).toLocaleString()}</td>
                             </tr>
@@ -306,15 +520,16 @@ return (
                     <table className="alumnos-table">
                         <thead>
                             <tr>
-                                <th>Estado</th>
+                                <th>Estado     </th>
                                 <th>Nombre</th>
                                 <th>Edad</th>
                                 <th>Modalidad</th>
-                                <th>Próxima Fecha de Pago</th>
-                                <th>Meses pendientes</th>
-                                <th>Meses pagados</th>
-                                <th>Deuda en $</th>
-                                <th>Opciones</th>
+                                <th>Entrenador</th>
+                                <th>F. Inscripción</th>
+                                <th>Pend.</th>
+                                <th>Pagos</th>
+                                <th>Deuda</th>
+                                <th>Acciones</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -336,26 +551,32 @@ return (
                                     <td>{calcularEdad(alumno.fecha_nacimiento)}</td>
                                     <td>
                                         <select
-                                            value={alumno.id_modalidad._id || alumno.id_modalidad}
+                                            value={alumno.id_modalidad ? (alumno.id_modalidad._id || alumno.id_modalidad) : ""}
                                             onChange={(e) => handleModalidadChange(alumno._id, e.target.value)}
                                         >
+                                            <option value="">Sin modalidad</option>
                                             {modalidades.map((modalidad) => (
                                                 <option key={modalidad._id} value={modalidad._id}>
-                                                    {modalidad.nombre} - {modalidad.horarios} 
+                                                    {modalidad.nombre} - {modalidad.horarios} - ${modalidad.costo || modalidad.precio || 0}
                                                 </option>
                                             ))}
                                         </select>
                                     </td>
-                                    <td>{alumno.proxima_fecha_pago ? new Date(alumno.proxima_fecha_pago).toLocaleDateString('es-MX') : 'N/A'}</td>
+                                    <td>
+                                        {obtenerNombreEntrenador(alumno.id_modalidad ? (alumno.id_modalidad._id || alumno.id_modalidad) : null)}
+                                    </td>
+                                    <td>{new Date(alumno.fecha_inscripcion).toLocaleDateString('es-MX')}</td>
                                     <td>{alumno.pago_pendiente}</td>
                                     <td>{alumno.pagos_realizados}</td>
                                     <td>
-                                      ${alumno.deuda_total_con_recargos || alumno.deuda_total}
-                                      {alumno.total_recargos > 0 && (
-                                        <span className="recargo-badge" title={`Recargos: $${alumno.total_recargos}`}>
-                                          +
-                                        </span>
-                                      )}
+                                      <div style={{display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px'}}>
+                                        <span>${(alumno.deuda_total_con_recargos || alumno.deuda_total || 0).toFixed(2)}</span>
+                                        {alumno.total_recargos > 0 && (
+                                          <span className="recargo-badge" title={`Recargos: ${alumno.total_recargos}`}>
+                                            +{alumno.total_recargos}
+                                          </span>
+                                        )}
+                                      </div>
                                     </td>
 
                                     <td>
@@ -366,7 +587,7 @@ return (
                                                 setMostrarPagoModal(true);
                                             }}
                                         >
-                                            Registrar Pago
+                                            💰 Pago
                                         </button>
                                         <button className="icon-button" onClick={() => setModal(alumno._id)}>
                                             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="red" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -420,6 +641,7 @@ return (
                                     costoPorMes: alumnoSeleccionado?.deuda_total > 0 
                                         ? costoPorMes 
                                         : modalidades.find(m => m._id === alumnoSeleccionado?.id_modalidad)?.costo || 0,
+                                    montoPersonalizado: undefined // Reset el monto personalizado cuando cambia la selección
                                 }));
                             }}
                         >
@@ -435,7 +657,65 @@ return (
                         {alumnoSeleccionado?.mesesAPagar && (
                             <>
                                 <p><strong>Costo por mes:</strong> ${alumnoSeleccionado?.costoPorMes ? alumnoSeleccionado.costoPorMes.toFixed(2) : '0.00'}</p>
-                                <p><strong>Costo total:</strong> ${(alumnoSeleccionado.costoPorMes * alumnoSeleccionado.mesesAPagar).toFixed(2)}</p>
+                                <p><strong>Costo calculado:</strong> ${(alumnoSeleccionado.costoPorMes * alumnoSeleccionado.mesesAPagar).toFixed(2)}</p>
+                                
+                                <div style={{ margin: '15px 0' }}>
+                                    <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>
+                                        💰 Monto a cobrar (editable):
+                                    </label>
+                                    <input
+                                        type="number"
+                                        step="0.01"
+                                        min="0"
+                                        value={alumnoSeleccionado.montoPersonalizado !== undefined ? 
+                                               alumnoSeleccionado.montoPersonalizado : 
+                                               (alumnoSeleccionado.costoPorMes * alumnoSeleccionado.mesesAPagar).toFixed(2)}
+                                        onChange={(e) => {
+                                            const nuevoMonto = parseFloat(e.target.value) || 0;
+                                            setAlumnoSeleccionado(prev => ({
+                                                ...prev,
+                                                montoPersonalizado: nuevoMonto
+                                            }));
+                                        }}
+                                        style={{
+                                            width: '100%',
+                                            padding: '8px 12px',
+                                            border: '2px solid #3b82f6',
+                                            borderRadius: '6px',
+                                            fontSize: '16px',
+                                            fontWeight: 'bold',
+                                            textAlign: 'center',
+                                            backgroundColor: '#f0f9ff'
+                                        }}
+                                        placeholder="0.00"
+                                    />
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '5px' }}>
+                                        <small style={{ color: '#6b7280', fontSize: '12px' }}>
+                                            Puedes modificar el monto para aplicar descuentos o ajustes
+                                        </small>
+                                        {alumnoSeleccionado.montoPersonalizado !== undefined && (
+                                            <button
+                                                onClick={() => {
+                                                    setAlumnoSeleccionado(prev => ({
+                                                        ...prev,
+                                                        montoPersonalizado: undefined
+                                                    }));
+                                                }}
+                                                style={{
+                                                    padding: '4px 8px',
+                                                    fontSize: '12px',
+                                                    backgroundColor: '#f59e0b',
+                                                    color: 'white',
+                                                    border: 'none',
+                                                    borderRadius: '4px',
+                                                    cursor: 'pointer'
+                                                }}
+                                            >
+                                                🔄 Restablecer
+                                            </button>
+                                        )}
+                                    </div>
+                                </div>
                             </>
                         )}
 
@@ -443,33 +723,183 @@ return (
                             <button
                                 className="pago-button"
                                 onClick={() => {
-                                    if (window.confirm("¿Está seguro de confirmar el pago?")) {
-                                        const costo = alumnoSeleccionado?.costoPorMes * alumnoSeleccionado?.mesesAPagar;
-                                        handlePagoEfectivoOTransferencia(alumnoSeleccionado, costo);
+                                    const montoFinal = alumnoSeleccionado?.montoPersonalizado !== undefined ? 
+                                                     alumnoSeleccionado.montoPersonalizado : 
+                                                     (alumnoSeleccionado?.costoPorMes * alumnoSeleccionado?.mesesAPagar);
+                                    
+                                    const montoCalculado = (alumnoSeleccionado?.costoPorMes * alumnoSeleccionado?.mesesAPagar).toFixed(2);
+                                    const esMontoModificado = montoFinal !== (alumnoSeleccionado?.costoPorMes * alumnoSeleccionado?.mesesAPagar);
+                                    
+                                    let mensaje = `¿Está seguro de confirmar el pago de $${montoFinal.toFixed(2)}?`;
+                                    if (esMontoModificado) {
+                                        mensaje += `\n\n(Monto original: $${montoCalculado} - Monto modificado aplicado)`;
+                                    }
+                                    
+                                    if (window.confirm(mensaje)) {
+                                        handlePagoEfectivoOTransferencia(alumnoSeleccionado, montoFinal);
                                         setMostrarPagoModal(false);
                                     }
                                 }}
                             >
-                                Confirmar Pago
+                                💰 Confirmar Pago ${alumnoSeleccionado?.montoPersonalizado !== undefined ? 
+                                  `$${alumnoSeleccionado.montoPersonalizado.toFixed(2)}` : 
+                                  `$${(alumnoSeleccionado?.costoPorMes * alumnoSeleccionado?.mesesAPagar || 0).toFixed(2)}`}
                             </button>
                             {alumnoSeleccionado?.mesesAPagar === 12 && (
                                 <button className="pago-button" onClick={async () => {
-                                    if (id) {
-                                        const costo = alumnoSeleccionado?.costoPorMes * 12;
-                                        await sumarPagosRealizados(id, 12, costo);
-                                        toast.success("Anualidad registrada con éxito");
+                                    const montoFinal = alumnoSeleccionado?.montoPersonalizado !== undefined ? 
+                                                     alumnoSeleccionado.montoPersonalizado : 
+                                                     (alumnoSeleccionado?.costoPorMes * 12);
+                                    
+                                    const montoCalculado = (alumnoSeleccionado?.costoPorMes * 12).toFixed(2);
+                                    const esMontoModificado = montoFinal !== (alumnoSeleccionado?.costoPorMes * 12);
+                                    
+                                    let mensaje = `¿Está seguro de confirmar el pago anual de $${montoFinal.toFixed(2)}?`;
+                                    if (esMontoModificado) {
+                                        mensaje += `\n\n(Monto original: $${montoCalculado} - Monto modificado aplicado)`;
+                                    }
+                                    
+                                    if (window.confirm(mensaje)) {
+                                        handlePagoEfectivoOTransferencia(alumnoSeleccionado, montoFinal);
                                         setMostrarPagoModal(false);
-                                    } 
-                                    if (window.confirm("¿Está seguro de confirmar el pago?")) {
-                                        const costo = alumnoSeleccionado?.costoPorMes * 12;
-                                        handlePagoEfectivoOTransferencia(alumnoSeleccionado, costo);}
+                                    }
                                 }}>
-                                    Pago de anualidad
+                                    📅 Pago de Anualidad
                                 </button>
                             )}
                         </div>
 
-                        <button onClick={() => setMostrarPagoModal(false)}>Cerrar</button>
+                        <button onClick={() => {
+                            setMostrarPagoModal(false);
+                            // Limpiar el monto personalizado al cerrar
+                            setAlumnoSeleccionado(prev => prev ? {
+                                ...prev,
+                                montoPersonalizado: undefined
+                            } : null);
+                        }}>Cerrar</button>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal de Importación de Excel */}
+            {mostrarImportModal && (
+                <div className="modal">
+                    <div className="modal-content import-modal">
+                        <h3>📤 Importar Alumnos desde Excel</h3>
+                        <p className="formato-info">
+                            <strong>Formato requerido:</strong> MATRICULA | NOMBRE | APELLIDO | NUMERO TELEFONO | DISCIPLINA | ENTRENADOR | GRUPO | MENSUALIDAD | INSCRIPCION | ENE-DIC (12 meses) | FECHA DE INSCRIPCION
+                        </p>
+
+                        {!resultadoImport ? (
+                            <>
+                                <div className="file-upload-area">
+                                    <input 
+                                        type="file" 
+                                        accept=".xls,.xlsx"
+                                        onChange={handleArchivoExcelChange}
+                                        id="excel-file-input"
+                                        style={{ display: 'none' }}
+                                        disabled={importandoExcel}
+                                    />
+                                    <label htmlFor="excel-file-input" className="file-upload-label">
+                                        <div className="upload-icon">📁</div>
+                                        <div className="upload-text">
+                                            {archivoExcel ? archivoExcel.name : 'Seleccionar archivo Excel'}
+                                        </div>
+                                        <div className="upload-hint">
+                                            Formatos: .xls, .xlsx (máx. 5MB)
+                                        </div>
+                                    </label>
+                                </div>
+                                
+                                <div className="import-actions">
+                                    <button 
+                                        onClick={handleImportarExcel}
+                                        disabled={!archivoExcel || importandoExcel}
+                                        className="btn-procesar"
+                                    >
+                                        {importandoExcel ? '⏳ Procesando...' : '🚀 Procesar Archivo'}
+                                    </button>
+                                    <button onClick={cerrarModalImport} className="btn-cancelar">
+                                        Cancelar
+                                    </button>
+                                </div>
+                            </>
+                        ) : (
+                            <div className="resultado-import">
+                                <h4>📊 Resultado de la Importación</h4>
+                                
+                                <div className="stats-grid">
+                                    <div className="stat-box exitosos">
+                                        <div className="stat-number">{resultadoImport.exitosos}</div>
+                                        <div className="stat-label">✅ Creados</div>
+                                    </div>
+                                    <div className="stat-box fallidos">
+                                        <div className="stat-number">{resultadoImport.fallidos}</div>
+                                        <div className="stat-label">❌ Errores</div>
+                                    </div>
+                                    {resultadoImport.duplicados !== undefined && (
+                                        <div className="stat-box duplicados">
+                                            <div className="stat-number">{resultadoImport.duplicados}</div>
+                                            <div className="stat-label">🔄 Duplicados</div>
+                                        </div>
+                                    )}
+                                    <div className="stat-box total">
+                                        <div className="stat-number">{resultadoImport.totalProcesado}</div>
+                                        <div className="stat-label">📊 Total</div>
+                                    </div>
+                                </div>
+                                
+                                {resultadoImport.errores && resultadoImport.errores.length > 0 && (
+                                    <div className="errores-container">
+                                        <h5>❌ Errores encontrados:</h5>
+                                        <div className="errores-lista">
+                                            {resultadoImport.errores.map((error, index) => (
+                                                <div key={index} className="error-item">
+                                                    {error}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                                
+                                {resultadoImport.registrosRechazados && resultadoImport.registrosRechazados.length > 0 && (
+                                    <div className="rechazados-container">
+                                        <h5>⚠️ Registros no procesados:</h5>
+                                        <div className="rechazados-lista">
+                                            {resultadoImport.registrosRechazados.map((registro, index) => (
+                                                <div key={index} className="rechazado-item">
+                                                    <div className="rechazado-header">
+                                                        <strong>Fila {registro.fila}:</strong> {registro.datos.nombre} {registro.datos.apellido}
+                                                    </div>
+                                                    <div className="rechazado-datos">
+                                                        Disciplina: {registro.datos.disciplina} | Teléfono: {registro.datos.telefono}
+                                                    </div>
+                                                    <div className="rechazado-motivo">
+                                                        <span className="motivo-label">Motivo:</span> {registro.motivo}
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                                
+                                <button onClick={cerrarModalImport} className="btn-cerrar-resultado">
+                                    ✅ Cerrar
+                                </button>
+                            </div>
+                        )}
+
+                        <div className="consejos-import">
+                            <h5>💡 Consejos:</h5>
+                            <ul>
+                                <li>Descarga la plantilla para ver el formato exacto</li>
+                                <li>DISCIPLINA debe coincidir con modalidades existentes</li>
+                                <li>Marca con "X" los meses pagados</li>
+                                <li>MATRICULA es opcional (se genera automáticamente)</li>
+                                <li>No se importarán alumnos duplicados</li>
+                            </ul>
+                        </div>
                     </div>
                 </div>
             )}
