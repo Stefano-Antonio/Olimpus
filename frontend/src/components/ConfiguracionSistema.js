@@ -13,7 +13,8 @@ const ConfiguracionSistema = () => {
     costoInscripcion: 0,
     diasGraciaParaPago: 5,
     montoRecargoTardio: 50,
-    tipoRecargo: 'fijo'
+    tipoRecargo: 'fijo',
+    emailReportes: ''
   });
 
   // Estados para gestión de entrenadores
@@ -30,6 +31,7 @@ const ConfiguracionSistema = () => {
   const cargarConfiguracion = async () => {
     try {
       const response = await axios.get('http://localhost:7000/api/configuracion');
+      console.log('Configuración cargada:', response.data); // Debug
       setConfiguracion(response.data);
       setLoading(false);
     } catch (error) {
@@ -121,7 +123,9 @@ const ConfiguracionSistema = () => {
     const { name, value } = e.target;
     setConfiguracion(prev => ({
       ...prev,
-      [name]: name === 'tipoRecargo' ? value : parseFloat(value) || 0
+      [name]: name === 'tipoRecargo' ? value : 
+             name === 'emailReportes' ? value :
+             parseFloat(value) || 0
     }));
   };
 
@@ -147,6 +151,15 @@ const ConfiguracionSistema = () => {
     if (configuracion.montoRecargoTardio < 0) {
       toast.error('El monto de recargo no puede ser negativo');
       return;
+    }
+    
+    // Validar email si se proporciona
+    if (configuracion.emailReportes && configuracion.emailReportes.trim()) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(configuracion.emailReportes.trim())) {
+        toast.error('Ingrese un correo electrónico válido');
+        return;
+      }
     }
     
     try {
@@ -200,6 +213,37 @@ const ConfiguracionSistema = () => {
               <p className="help-text">
                 Este monto se cobrará una sola vez al momento de la inscripción de nuevos alumnos
               </p>
+            </div>
+          </div>
+
+          {/* Configuración de Reportes Automáticos */}
+          <div className="config-section">
+            <h2>📧 Configuración de Reportes Automáticos</h2>
+            
+            <div className="form-group">
+              <label htmlFor="emailReportes">
+                Correo electrónico para recibir reportes:
+              </label>
+              <input
+                type="email"
+                id="emailReportes"
+                name="emailReportes"
+                value={configuracion.emailReportes}
+                onChange={handleChange}
+                placeholder="correo@ejemplo.com"
+              />
+              <p className="help-text">
+                Los reportes diarios (Excel + PDF) se enviarán automáticamente a las 8:00 PM a este correo
+              </p>
+            </div>
+            
+            <div className="info-reportes">
+              <h4>📋 Información de Reportes Automáticos:</h4>
+              <ul>
+                <li><strong>📊 Horario:</strong> Todos los días a las 8:00 PM</li>
+                <li><strong>📁 Contenido:</strong> Base de alumnos (Excel) + Corte del día (PDF)</li>
+                <li><strong>⚙️ Estado:</strong> {configuracion.emailReportes ? '✅ Configurado' : '⚠️ Sin configurar'}</li>
+              </ul>
             </div>
           </div>
 
