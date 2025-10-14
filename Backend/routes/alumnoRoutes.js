@@ -1,7 +1,5 @@
 const express = require('express');
 const router = express.Router();
-const jwt = require('jsonwebtoken');
-const bcrypt = require('bcrypt');
 const Alumno = require('../models/alumnos');
 const Modalidad = require('../models/modalidades');
 const ConfiguracionSistema = require('../models/configuracion');

@@ -1,11 +1,8 @@
 const express = require('express');
 const router = express.Router();
-const jwt = require('jsonwebtoken');
-const bcrypt = require('bcrypt');
 const Modalidad = require('../models/modalidades');
-const stripe = require('stripe')('tu_clave_secreta_de_stripe');
-const Alumno = require('../models/alumnos'); // Asegúrate de tener el modelo de Alumno
-const Pago = require('../models/pagos'); // Asegúrate de tener el modelo de Pago
+const Alumno = require('../models/alumnos');
+const Pago = require('../models/pagos');
 
 // Crear una nueva modalidad
 router.post('/', async (req, res) => {
