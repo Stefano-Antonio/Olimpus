@@ -7,17 +7,6 @@
     z-index: 100; /* z-index menor que el modal */
 }
   
-.search-bar {
-    width: 100%;
-    max-width: 800px;
-    padding: 10px;
-    margin-bottom: 20px;
-    font-size: 16px;
-    box-sizing: border-box;
-    border: 1px solid #ccc;
-    border-radius: 5px;
-}
-
 .header img {
     width: 60px;
     vertical-align: middle;
@@ -578,14 +567,46 @@ h3, h4 {
   
 /* Nuevos estilos para búsqueda y exportar */
 .search-and-actions {
-  display: flex;
-  gap: 1rem;
-  align-items: center;
-  margin-bottom: 20px;
-  flex-wrap: wrap;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 20px;
+    gap: 20px;
+    flex-wrap: wrap;
 }
 
-.search-and-actions .search-bar {
+.search-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    flex: 1;
+    max-width: 600px;
+}
+
+.search-bar {
+    width: 100%;
+    padding: 10px;
+    font-size: 16px;
+    box-sizing: border-box;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+}
+
+.filtro-estado {
+    padding: 8px 12px;
+    font-size: 14px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    background-color: white;
+    cursor: pointer;
+    min-width: 180px;
+}
+
+.filtro-estado:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+}.search-and-actions .search-bar {
   flex: 1;
   min-width: 300px;
   margin-bottom: 0;
@@ -652,6 +673,72 @@ h3, h4 {
 }
 
 /* ===== BADGES Y ELEMENTOS ESPECIALES ===== */
+.grupo-badge {
+  display: inline-block;
+  background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+  color: #1e40af;
+  padding: 0.25rem 0.5rem;
+  border-radius: 8px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border: 1px solid #60a5fa;
+  transition: all 0.2s ease;
+  min-width: 30px;
+  text-align: center;
+}
+
+.grupo-badge:hover {
+  background: linear-gradient(135deg, #bfdbfe 0%, #dbeafe 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(30, 64, 175, 0.2);
+}
+
+/* ===== ESTADOS ACTIVO/INACTIVO ===== */
+.estado-inactivo {
+  margin-left: 5px;
+  font-size: 0.8rem;
+  opacity: 0.7;
+}
+
+.texto-inactivo {
+  color: #6b7280;
+  font-style: italic;
+  font-size: 0.85rem;
+  margin-left: 5px;
+}
+
+.btn-activar {
+  background-color: #10b981 !important;
+  color: white !important;
+}
+
+.btn-activar:hover {
+  background-color: #059669 !important;
+  transform: translateY(-1px);
+}
+
+.btn-desactivar {
+  background-color: #f59e0b !important;
+  color: white !important;
+}
+
+.btn-desactivar:hover {
+  background-color: #d97706 !important;
+  transform: translateY(-1px);
+}
+
+.icon-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background-color: #e5e7eb !important;
+  color: #9ca3af !important;
+}
+
+.icon-button:disabled:hover {
+  transform: none;
+  background-color: #e5e7eb !important;
+}
+
 .recargo-badge {
   display: inline-block;
   background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);

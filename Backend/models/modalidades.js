@@ -12,6 +12,21 @@ const ModalidadSchema = new Schema({
   // === INFORMACIÓN DE LA CLASE ===
   nombre: { type: String, required: true }, // Ej: "Gimnasia Femenil", "Parkour", "Baby Gym"
   
+  // === GRUPO IDENTIFICADOR ===
+  // Letra mayúscula que identifica la modalidad para importaciones Excel (A, B, C, D...)
+  grupo: { 
+    type: String, 
+    required: false,
+    validate: {
+      validator: function(v) {
+        return !v || /^[A-Z]$/.test(v); // Solo letras mayúsculas
+      },
+      message: 'El grupo debe ser una letra mayúscula (A-Z)'
+    },
+    unique: true,
+    sparse: true // Permite que sea null y único a la vez
+  },
+  
   // === ENTRENADOR ASIGNADO ===
   id_entrenador: { 
     type: mongoose.Schema.Types.ObjectId, 

@@ -359,6 +359,7 @@ const registrarPagosDetallados = async (id, esAnualidad = false, montoTotalPerso
                     <option value="">Sin modalidad (solo inscripción)</option>
                     {modalidades.map((modalidad) => (
                       <option key={modalidad._id} value={modalidad._id}>
+                        {modalidad.grupo ? `[${modalidad.grupo}] ` : ''}
                         {modalidad.nombre} - {modalidad.horarios}
                       </option>
                     ))}

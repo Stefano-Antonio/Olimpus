@@ -27,6 +27,8 @@ const Alumnos = () => {
   const [archivoExcel, setArchivoExcel] = useState(null);
   const [importandoExcel, setImportandoExcel] = useState(false);
   const [resultadoImport, setResultadoImport] = useState(null);
+  // Estado para filtro de alumnos activos/inactivos
+  const [filtroEstado, setFiltroEstado] = useState('todos'); // 'todos', 'activos', 'inactivos'
   // Removed unused declaration
   const navigate = useNavigate();
 
@@ -138,6 +140,12 @@ useEffect(() => {
     return modalidad.entrenador && modalidad.entrenador !== 'Sin entrenador' 
       ? modalidad.entrenador 
       : 'Sin asignar';
+  };
+
+  const obtenerGrupoModalidad = (idModalidad) => {
+    if (!idModalidad) return 'Sin grupo';
+    const modalidad = modalidades.find(m => m._id === idModalidad);
+    return modalidad && modalidad.grupo ? modalidad.grupo : 'Sin grupo';
   };
 
   const setModal = (id) => {
@@ -360,10 +368,14 @@ useEffect(() => {
   const alumnosFiltrados = alumnos.filter(alumno => {
     if (!alumno) return false;
 
+    // Filtro por estado activo/inactivo
+    if (filtroEstado === 'activos' && alumno.activo === false) return false;
+    if (filtroEstado === 'inactivos' && alumno.activo !== false) return false;
+
     const modalidadId = alumno.id_modalidad ? (alumno.id_modalidad._id || alumno.id_modalidad) : null;
     const modalidad = obtenerNombreModalidad(modalidadId)?.toLowerCase() || "";
     const horario = modalidadId ? obtenerHorarioModalidad(modalidadId)?.toLowerCase() || "" : "";
-    const edad = calcularEdad(alumno.fecha_nacimiento)?.toString() || "";
+    const grupo = obtenerGrupoModalidad(modalidadId)?.toLowerCase() || "";
     const fechaInscripcion = new Date(alumno.fecha_inscripcion).toLocaleDateString('es-MX') || "";
 
     return (
@@ -371,7 +383,7 @@ useEffect(() => {
         alumno.matricula?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         modalidad.includes(searchTerm.toLowerCase()) ||
         horario.includes(searchTerm.toLowerCase()) ||
-        edad.includes(searchTerm.toLowerCase()) ||
+        grupo.includes(searchTerm.toLowerCase()) ||
         fechaInscripcion.includes(searchTerm.toLowerCase())
     );
 });
@@ -414,6 +426,46 @@ const sumarPagosRealizados = async (id, monto, costo) => {
     }
   };
 
+  // Función para cambiar el estado activo/inactivo del alumno
+  const handleCambiarEstadoAlumno = async (alumnoId, estadoActual) => {
+    try {
+      const nuevoEstado = !estadoActual;
+      const alumno = alumnos.find(a => a._id === alumnoId);
+      
+      if (!alumno) {
+        toast.error("Alumno no encontrado");
+        return;
+      }
+
+      const accion = nuevoEstado ? 'activar' : 'desactivar';
+      const confirmMessage = `¿Está seguro que desea ${accion} a ${alumno.nombre}?${
+        !nuevoEstado ? '\n\nAl desactivar un alumno:\n• No se acumulará deuda\n• No se aplicarán cobros mensuales' : 
+        '\n\nAl activar un alumno:\n• Se reanudará la acumulación de deuda\n• Se aplicarán cobros mensuales normalmente'
+      }`;
+
+      if (!window.confirm(confirmMessage)) {
+        return;
+      }
+
+      const response = await axios.post(`http://localhost:7000/api/alumnos/cambiar-estado/${alumnoId}`, {
+        activo: nuevoEstado
+      });
+
+      // Actualizar el estado local
+      setAlumnos(prevAlumnos => 
+        prevAlumnos.map(a => 
+          a._id === alumnoId ? { ...a, activo: nuevoEstado } : a
+        )
+      );
+
+      toast.success(`Alumno ${nuevoEstado ? 'activado' : 'desactivado'} exitosamente`);
+      
+    } catch (error) {
+      console.error('Error al cambiar estado del alumno:', error);
+      toast.error('Error al cambiar el estado del alumno');
+    }
+  };
+
 return (
     <div className="alumno-layout">
         <ToastContainer position="top-right" autoClose={3000} />
@@ -428,13 +480,24 @@ return (
             <h3>Administrar alumnos</h3>
 
             <div className="search-and-actions">
-              <input
-                  type="text"
-                  placeholder="Buscar por nombre, modalidad, fecha..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="search-bar"
-              />
+              <div className="search-controls">
+                <input
+                    type="text"
+                    placeholder="Buscar por nombre, modalidad, grupo, fecha..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="search-bar"
+                />
+                <select 
+                  value={filtroEstado} 
+                  onChange={(e) => setFiltroEstado(e.target.value)}
+                  className="filtro-estado"
+                >
+                  <option value="todos">👥 Todos los alumnos</option>
+                  <option value="activos">✅ Solo activos</option>
+                  <option value="inactivos">💤 Solo inactivos</option>
+                </select>
+              </div>
               <div className="excel-actions">
                 <button onClick={handleDescargarPlantilla} className="btn-plantilla">
                   📄 Plantilla Excel
@@ -527,7 +590,7 @@ return (
                             <tr>
                                 <th>Estado     </th>
                                 <th>Nombre</th>
-                                <th>Edad</th>
+                                <th>Grupo</th>
                                 <th>Modalidad</th>
                                 <th>Entrenador</th>
                                 <th>F. Inscripción</th>
@@ -551,9 +614,23 @@ return (
                                         estado={alumno.estado_pago || 'verde'} 
                                         diasVencidos={alumno.dias_vencidos || 0}
                                       />
+                                      {alumno.activo === false && (
+                                        <span className="estado-inactivo" title="Alumno inactivo">
+                                          💤
+                                        </span>
+                                      )}
                                     </td>
-                                    <td>{alumno.nombre}</td>
-                                    <td>{calcularEdad(alumno.fecha_nacimiento)}</td>
+                                    <td>
+                                      {alumno.nombre}
+                                      {alumno.activo === false && (
+                                        <span className="texto-inactivo"> (Inactivo)</span>
+                                      )}
+                                    </td>
+                                    <td>
+                                      <span className="grupo-badge">
+                                        {obtenerGrupoModalidad(alumno.id_modalidad ? (alumno.id_modalidad._id || alumno.id_modalidad) : null)}
+                                      </span>
+                                    </td>
                                     <td>
                                         <select
                                             value={alumno.id_modalidad ? (alumno.id_modalidad._id || alumno.id_modalidad) : ""}
@@ -591,8 +668,17 @@ return (
                                                 setAlumnoSeleccionado(alumno);
                                                 setMostrarPagoModal(true);
                                             }}
+                                            disabled={alumno.activo === false}
+                                            title={alumno.activo === false ? "No se pueden registrar pagos en alumnos inactivos" : "Registrar pago"}
                                         >
                                             💰 Pago
+                                        </button>
+                                        <button 
+                                            className={`icon-button ${alumno.activo === false ? 'btn-activar' : 'btn-desactivar'}`}
+                                            onClick={() => handleCambiarEstadoAlumno(alumno._id, alumno.activo)}
+                                            title={alumno.activo === false ? "Activar alumno" : "Desactivar alumno"}
+                                        >
+                                            {alumno.activo === false ? '✅' : '💤'}
                                         </button>
                                         <button className="icon-button" onClick={() => setModal(alumno._id)}>
                                             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="red" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

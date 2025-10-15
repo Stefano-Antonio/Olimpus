@@ -40,23 +40,31 @@ router.get('/', async (req, res) => {
   try {
     // Obtener configuración del sistema para fecha de cobro
     const config = await ConfiguracionSistema.obtenerConfiguracion();
-    const fechaCobroMensual = config.fechaCobroMensual;
+    const diaCobroMensual = config.fechaCobroMensual; // Es un número (día del mes)
+    
+    // Crear fecha actual para los cálculos
+    const fechaActual = new Date();
     
     const alumnos = await Alumno.find().populate('id_modalidad', 'nombre costo');
-    const alumnosConPagos = await Promise.all(alumnos.map(async (alumno) => {
-      const fechaInscripcion = new Date(alumno.fecha_inscripcion);
-      const hoy = new Date();
-
-      // Cálculo de los meses transcurridos entre fecha de inscripción y fecha actual
-      let mesesTranscurridos = (hoy.getFullYear() - fechaInscripcion.getFullYear()) * 12;
-      mesesTranscurridos += hoy.getMonth() - fechaInscripcion.getMonth();
-
-      // Si la fecha de hoy no ha alcanzado el día de inscripción, ajustamos el cálculo
-      if (hoy.getDate() < fechaInscripcion.getDate()) {
-        mesesTranscurridos--;
+    const resultado = await Promise.all(alumnos.map(async (alumno) => {
+      // Si el alumno está inactivo, no calcular deudas
+      if (alumno.activo === false) {
+        return {
+          ...alumno.toObject(),
+          pago_pendiente: 0,
+          deuda_total: 0,
+          deuda_total_con_recargos: 0,
+          total_recargos: 0,
+          estado_pago: 'verde',
+          dias_vencidos: 0,
+          proxima_fecha_pago: null
+        };
       }
 
-      // Ajuste: +1 para incluir el mes de inscripción como pendiente si no está pagado
+      // Solo calcular deudas para alumnos activos
+      // Asegurar que las fechas sean objetos Date válidos
+      const fechaInscripcionAlumno = new Date(alumno.fecha_inscripcion);
+      const mesesTranscurridos = calcularMesesVencidosDesde(fechaInscripcionAlumno, fechaActual);
       const mesesPendientes = Math.max(0, mesesTranscurridos + 1 - alumno.pagos_realizados);
 
       // Obtener el costo de la modalidad desde el modelo
@@ -67,16 +75,16 @@ router.get('/', async (req, res) => {
       const deudaTotal = mesesPendientes * costoModalidad;
       
       // Calcular próxima fecha de pago (día fijo del próximo mes si ya pasó este mes)
-      const mesActual = hoy.getMonth();
-      const anioActual = hoy.getFullYear();
+      const mesActual = fechaActual.getMonth();
+      const anioActual = fechaActual.getFullYear();
       let proximaFechaPago;
       
-      if (hoy.getDate() < fechaCobroMensual) {
+      if (fechaActual.getDate() < diaCobroMensual) {
         // Si aún no llegamos al día de cobro del mes actual
-        proximaFechaPago = new Date(anioActual, mesActual, fechaCobroMensual);
+        proximaFechaPago = new Date(anioActual, mesActual, diaCobroMensual);
       } else {
         // Ya pasó el día de cobro, la próxima es el mes siguiente
-        proximaFechaPago = new Date(anioActual, mesActual + 1, fechaCobroMensual);
+        proximaFechaPago = new Date(anioActual, mesActual + 1, diaCobroMensual);
       }
       
       // Obtener recargos pendientes del alumno
@@ -93,14 +101,14 @@ router.get('/', async (req, res) => {
       
       if (mesesPendientes > 0) {
         // Tiene deuda - calcular días de atraso
-        const fechaCobro = new Date(anioActual, mesActual, fechaCobroMensual);
-        if (hoy > fechaCobro) {
+        const fechaCobro = new Date(anioActual, mesActual, diaCobroMensual);
+        if (fechaActual > fechaCobro) {
           estadoPago = 'rojo'; // Atrasado
-          diasVencidos = Math.floor((hoy - fechaCobro) / (1000 * 60 * 60 * 24));
+          diasVencidos = Math.floor((fechaActual - fechaCobro) / (1000 * 60 * 60 * 24));
         }
       } else if (mesesPendientes === 0) {
         // Verificar si está próximo a vencer (3 días antes)
-        const diasParaVencer = Math.floor((proximaFechaPago - hoy) / (1000 * 60 * 60 * 24));
+        const diasParaVencer = Math.floor((proximaFechaPago - fechaActual) / (1000 * 60 * 60 * 24));
         if (diasParaVencer <= 3 && diasParaVencer >= 0) {
           estadoPago = 'amarillo'; // Por vencer
         }
@@ -108,7 +116,7 @@ router.get('/', async (req, res) => {
 
       return {
         ...alumno.toObject(),
-        fecha_inscripcion: fechaInscripcion.toISOString().split('T')[0],
+        fecha_inscripcion: fechaInscripcionAlumno.toISOString().split('T')[0],
         pago_pendiente: mesesPendientes,
         deuda_total: deudaTotal,
         proxima_fecha_pago: proximaFechaPago.toISOString().split('T')[0],
@@ -119,10 +127,11 @@ router.get('/', async (req, res) => {
       };
     }));
 
-    res.status(200).json(alumnosConPagos);
+    res.status(200).json(resultado);
   } catch (error) {
     console.error('Error al obtener los alumnos:', error);
-    res.status(500).json({ message: 'Error al obtener los alumnos', error });
+    console.error('Stack trace:', error.stack);
+    res.status(500).json({ message: 'Error al obtener los alumnos', error: error.message });
   }
 });
 
@@ -231,6 +240,38 @@ router.get('/calcular-pagos-pendientes', async (req, res) => {
   }
 });
 
+// Ruta para cambiar el estado activo/inactivo de un alumno
+router.post('/cambiar-estado/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { activo } = req.body;
+
+    // Buscar el alumno
+    const alumno = await Alumno.findById(id);
+    if (!alumno) {
+      return res.status(404).json({ message: 'Alumno no encontrado' });
+    }
+
+    // Actualizar el estado
+    alumno.activo = activo;
+    await alumno.save();
+
+    console.log(`Alumno ${alumno.nombre} ${activo ? 'activado' : 'desactivado'}`);
+
+    res.json({
+      message: `Alumno ${activo ? 'activado' : 'desactivado'} exitosamente`,
+      alumno: {
+        id: alumno._id,
+        nombre: alumno.nombre,
+        activo: alumno.activo
+      }
+    });
+
+  } catch (error) {
+    console.error('Error al cambiar estado del alumno:', error);
+    res.status(500).json({ message: 'Error interno del servidor', error: error.message });
+  }
+});
 
 
 module.exports = router;

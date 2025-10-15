@@ -33,6 +33,9 @@ const AlumnoSchema = new Schema({
   costo_mensualidad: { type: Number, default: 0 }, // Costo mensual guardado del Excel
   costo_inscripcion_excel: { type: Number, default: 0 }, // Costo de inscripción del Excel
   
+  // === ESTADO DEL ALUMNO ===
+  activo: { type: Boolean, default: true }, // Estado activo/inactivo del alumno
+  
   // === SISTEMA DE PAGOS ===
   // NOTA PARA IA: El cálculo de deudas se hace dinámicamente en las rutas, no aquí
   pago_pendiente: { type: Number, default: 0 }, // Se calcula automáticamente
@@ -44,10 +47,38 @@ const AlumnoSchema = new Schema({
 // === MIDDLEWARE PARA GENERAR MATRÍCULA AUTOMÁTICAMENTE ===
 AlumnoSchema.pre('save', async function(next) {
   if (!this.matricula) {
-    // Generar matrícula única con formato: OLY + año + número secuencial
-    const año = new Date().getFullYear();
-    const count = await mongoose.model('Alumno').countDocuments();
-    this.matricula = `OLY${año}${String(count + 1).padStart(4, '0')}`;
+    try {
+      // Buscar todas las matrículas existentes para encontrar el número más alto
+      const alumnos = await mongoose.model('Alumno').find({}, { matricula: 1 });
+      
+      let numeroMasAlto = 0;
+
+      // Extraer todos los números de las matrículas existentes
+      alumnos.forEach(alumno => {
+        if (alumno.matricula) {
+          // Extraer solo números puros (eliminar letras y obtener solo dígitos)
+          const soloNumeros = alumno.matricula.replace(/\D/g, '');
+          if (soloNumeros) {
+            const numero = parseInt(soloNumeros);
+            if (numero > numeroMasAlto) {
+              numeroMasAlto = numero;
+            }
+          }
+        }
+      });
+
+      // Siguiente número disponible (incremental, sin reutilizar eliminados)
+      const siguienteNumero = numeroMasAlto + 1;
+
+      // Generar nueva matrícula con formato simple de 3 dígitos: 001, 002, 003...
+      this.matricula = String(siguienteNumero).padStart(3, '0');
+      
+      console.log(`Matrícula generada: ${this.matricula} (número más alto encontrado: ${numeroMasAlto})`);
+    } catch (error) {
+      console.error('Error al generar matrícula:', error);
+      // Fallback: usar timestamp si hay error
+      this.matricula = Date.now().toString().slice(-3).padStart(3, '0');
+    }
   }
   next();
 });

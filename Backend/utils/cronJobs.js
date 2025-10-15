@@ -14,6 +14,34 @@ const { verificarConfiguracionCorreo } = require('./emailService');
 
 // Función para calcular meses vencidos desde una fecha fija
 const calcularMesesVencidosDesde = (fechaInicio, fechaActual) => {
+  // Debug: Verificar que ambos parámetros sean objetos Date válidos
+  if (!(fechaInicio instanceof Date)) {
+    console.error('ERROR: fechaInicio no es un objeto Date:', fechaInicio, typeof fechaInicio);
+    // Intentar convertir a Date si es posible
+    if (fechaInicio) {
+      fechaInicio = new Date(fechaInicio);
+      if (isNaN(fechaInicio.getTime())) {
+        console.error('ERROR: No se pudo convertir fechaInicio a Date válido');
+        return 0;
+      }
+    } else {
+      return 0;
+    }
+  }
+  if (!(fechaActual instanceof Date)) {
+    console.error('ERROR: fechaActual no es un objeto Date:', fechaActual, typeof fechaActual);
+    // Intentar convertir a Date si es posible
+    if (fechaActual) {
+      fechaActual = new Date(fechaActual);
+      if (isNaN(fechaActual.getTime())) {
+        console.error('ERROR: No se pudo convertir fechaActual a Date válido');
+        return 0;
+      }
+    } else {
+      return 0;
+    }
+  }
+  
   let mesesTranscurridos = (fechaActual.getFullYear() - fechaInicio.getFullYear()) * 12;
   mesesTranscurridos += fechaActual.getMonth() - fechaInicio.getMonth();
   

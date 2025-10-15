@@ -4,9 +4,30 @@ const Modalidad = require('../models/modalidades');
 const Alumno = require('../models/alumnos');
 const Pago = require('../models/pagos');
 
+// Función auxiliar para obtener la siguiente letra disponible
+async function obtenerSiguienteGrupo() {
+    try {
+        const modalidadesConGrupo = await Modalidad.find({ grupo: { $ne: null } }).sort({ grupo: 1 });
+        const gruposUsados = modalidadesConGrupo.map(m => m.grupo);
+        
+        // Buscar la primera letra disponible desde A
+        for (let i = 65; i <= 90; i++) { // A-Z en ASCII
+            const letra = String.fromCharCode(i);
+            if (!gruposUsados.includes(letra)) {
+                return letra;
+            }
+        }
+        
+        return null; // No hay letras disponibles
+    } catch (error) {
+        console.error('Error al obtener siguiente grupo:', error);
+        return null;
+    }
+}
+
 // Crear una nueva modalidad
 router.post('/', async (req, res) => {
-    const { nombre, horarios, costo, id_entrenador } = req.body;
+    const { nombre, horarios, costo, id_entrenador, grupo } = req.body;
     console.log('Datos recibidos para crear la materia:', req.body);
 
     try {
@@ -16,12 +37,19 @@ router.post('/', async (req, res) => {
             return res.status(400).json({ message: 'Ya existe una modalidad con este nombre y horarios' });
         }
 
-        // Crear la modalidad con el entrenador (si se proporciona)
+        // Asignar grupo automáticamente si no se proporciona
+        let grupoAsignado = grupo;
+        if (!grupoAsignado) {
+            grupoAsignado = await obtenerSiguienteGrupo();
+        }
+
+        // Crear la modalidad con el entrenador y grupo
         const newModalidad = new Modalidad({
             nombre,
             horarios,
             costo,
-            id_entrenador: id_entrenador || null
+            id_entrenador: id_entrenador || null,
+            grupo: grupoAsignado
         });
 
         await newModalidad.save();
@@ -66,6 +94,7 @@ router.get('/', async (req, res) => {
                 nombre: modalidad.nombre,
                 horarios: `${dias.join('-')}-${horaComun}`,
                 costo: modalidad.costo,
+                grupo: modalidad.grupo || 'Sin grupo',
                 entrenador: modalidad.id_entrenador ? modalidad.id_entrenador.nombre : 'Sin entrenador',
                 id_entrenador: modalidad.id_entrenador ? modalidad.id_entrenador._id : null
             };
@@ -82,7 +111,7 @@ router.get('/', async (req, res) => {
 router.put('/:id', async (req, res) => {
     try {
         const { id } = req.params;
-        const { nombre, horarios, costo, id_entrenador } = req.body;
+        const { nombre, horarios, costo, id_entrenador, grupo } = req.body;
         
         console.log('Datos recibidos para actualizar modalidad:', req.body);
 
@@ -92,7 +121,8 @@ router.put('/:id', async (req, res) => {
                 nombre,
                 horarios,
                 costo,
-                id_entrenador: id_entrenador || null
+                id_entrenador: id_entrenador || null,
+                grupo: grupo || null
             },
             { new: true, runValidators: true }
         );
@@ -106,6 +136,23 @@ router.put('/:id', async (req, res) => {
     } catch (error) {
         console.error('Error al actualizar modalidad:', error);
         res.status(500).json({ message: 'Error al actualizar modalidad', error: error.message });
+    }
+});
+
+// Obtener modalidad por grupo (para importación Excel)
+router.get('/grupo/:grupo', async (req, res) => {
+    try {
+        const { grupo } = req.params;
+        const modalidad = await Modalidad.findOne({ grupo: grupo.toUpperCase() });
+        
+        if (!modalidad) {
+            return res.status(404).json({ message: `No se encontró modalidad con grupo ${grupo}` });
+        }
+        
+        res.json(modalidad);
+    } catch (error) {
+        console.error('Error al buscar modalidad por grupo:', error);
+        res.status(500).json({ message: 'Error al buscar modalidad por grupo', error: error.message });
     }
 });
 
@@ -153,6 +200,14 @@ router.post('/sumarpago', async (req, res) => {
     if (!alumno) {
       return res.status(404).json({ message: 'Alumno no encontrado' });
     }
+
+    // Verificar si el alumno está activo
+    if (alumno.activo === false) {
+      return res.status(400).json({ 
+        message: 'No se pueden registrar pagos para alumnos inactivos. Active al alumno primero.' 
+      });
+    }
+
     console.log('Datos recibidos para registrar el pago:', req.body);
     
     // 1. Registrar el nuevo pago con concepto

@@ -201,12 +201,29 @@ const importarAlumnosDesdeExcel = async (data) => {
     registrosRechazados: []
   };
   
-  // Obtener todas las modalidades para mapear por disciplina
+  // Obtener todas las modalidades para mapear por grupo y disciplina
   const modalidades = await Modalidad.find();
-  const modalidadesMap = {};
+  const modalidadesMapGrupo = {}; // Mapeo por grupo (letra)
+  const modalidadesMapNombre = {}; // Mapeo por nombre/disciplina (fallback)
+  
+  console.log('=== MODALIDADES DISPONIBLES ===');
   modalidades.forEach(m => {
-    modalidadesMap[m.nombre.toLowerCase()] = m._id;
+    console.log(`Modalidad: "${m.nombre}", Grupo: "${m.grupo || 'SIN GRUPO'}", ID: ${m._id}`);
+    // Mapear por grupo si existe
+    if (m.grupo) {
+      modalidadesMapGrupo[m.grupo.toUpperCase()] = m;
+    }
+    // Mapear por nombre para fallback
+    modalidadesMapNombre[m.nombre.toLowerCase()] = m;
   });
+  
+  console.log('=== MAPEOS CREADOS ===');
+  console.log('Grupos disponibles:', Object.keys(modalidadesMapGrupo));
+  console.log('Nombres disponibles:', Object.keys(modalidadesMapNombre));
+  
+  if (Object.keys(modalidadesMapGrupo).length === 0) {
+    console.log('⚠️  ADVERTENCIA: No hay modalidades con grupos asignados');
+  }
   
   // Obtener todas las matrículas existentes para evitar duplicados
   const matriculasExistentes = new Set();
@@ -222,7 +239,7 @@ const importarAlumnosDesdeExcel = async (data) => {
     const row = data[i];
     
     // Saltar filas vacías
-    if (!row.NOMBRE && !row.APELLIDO && !row.DISCIPLINA) {
+    if (!row.NOMBRE && !row.APELLIDO && !row.DISCIPLINA && !row.GRUPO) {
       continue;
     }
     
@@ -231,8 +248,26 @@ const importarAlumnosDesdeExcel = async (data) => {
       const nombre = (row.NOMBRE || '').toString().trim();
       const apellido = (row.APELLIDO || '').toString().trim();
       const disciplina = (row.DISCIPLINA || '').toString().trim();
+      
+      // Extraer grupo con múltiples variaciones de nombre de columna
+      let grupo = '';
+      const posiblesColumnasGrupo = ['GRUPO', 'grupo', 'Grupo', 'LETTER', 'letter', 'Letter', 'LETRA', 'letra', 'Letra'];
+      
+      for (const columna of posiblesColumnasGrupo) {
+        if (row[columna] !== undefined && row[columna] !== null && row[columna] !== '') {
+          grupo = row[columna].toString().trim().toUpperCase();
+          break;
+        }
+      }
+      
       const telefono = ((row['NUMERO TELEFONO'] || row['NUMERO TELEFONICO']) || '').toString().trim();
       const matricula = row.MATRICULA ? row.MATRICULA.toString().trim() : null;
+      
+      console.log(`\n=== PROCESANDO FILA ${i + 2} ===`);
+      console.log(`Nombre: "${nombre}", Apellido: "${apellido}"`);
+      console.log(`Grupo Excel: "${grupo}", Disciplina: "${disciplina}"`);
+      console.log(`Teléfono: "${telefono}", Matrícula: "${matricula}"`);
+      console.log(`Columnas disponibles en la fila:`, Object.keys(row));
       
       // Verificar si la matrícula ya existe
       if (matricula && matriculasExistentes.has(matricula)) {
@@ -264,17 +299,53 @@ const importarAlumnosDesdeExcel = async (data) => {
         continue;
       }
       
-      // Buscar modalidad por disciplina (búsqueda flexible)
+      // Buscar modalidad por grupo (prioridad) o por disciplina (fallback)
       let modalidadEncontrada = null;
-      for (const modalidadNombre in modalidadesMap) {
-        if (modalidadNombre.toLowerCase() === disciplina.toLowerCase()) {
-          modalidadEncontrada = modalidades.find(m => m.nombre.toLowerCase() === modalidadNombre);
-          break;
+      
+      console.log(`Buscando modalidad...`);
+      
+      // 1. Buscar por grupo si está especificado
+      if (grupo && grupo !== '') {
+        console.log(`Buscando por grupo: "${grupo}"`);
+        console.log(`¿Grupo existe en mapa?`, grupo in modalidadesMapGrupo);
+        console.log(`Modalidades disponibles por grupo:`, Object.keys(modalidadesMapGrupo));
+        
+        if (modalidadesMapGrupo[grupo]) {
+          modalidadEncontrada = modalidadesMapGrupo[grupo];
+          console.log(`✅ Modalidad encontrada por grupo "${grupo}":`, modalidadEncontrada.nombre);
+        } else {
+          // Buscar directamente en la base de datos por si acaso
+          console.log(`Buscando directamente en BD por grupo "${grupo}"`);
+          const modalidadPorGrupo = await Modalidad.findOne({ grupo: grupo });
+          if (modalidadPorGrupo) {
+            modalidadEncontrada = modalidadPorGrupo;
+            console.log(`✅ Modalidad encontrada en BD por grupo "${grupo}":`, modalidadEncontrada.nombre);
+          } else {
+            console.log(`❌ No se encontró modalidad para grupo "${grupo}" ni en mapa ni en BD`);
+          }
+        }
+      } else {
+        console.log(`No hay grupo especificado o está vacío`);
+      }
+      
+      // 2. Si no se encuentra por grupo, buscar por disciplina
+      if (!modalidadEncontrada && disciplina && disciplina !== '') {
+        console.log(`Buscando por disciplina: "${disciplina}"`);
+        for (const modalidadNombre in modalidadesMapNombre) {
+          if (modalidadNombre.toLowerCase() === disciplina.toLowerCase()) {
+            modalidadEncontrada = modalidadesMapNombre[modalidadNombre];
+            console.log(`✅ Modalidad encontrada por disciplina "${disciplina}":`, modalidadEncontrada.nombre);
+            break;
+          }
+        }
+        if (!modalidadEncontrada) {
+          console.log(`❌ No se encontró modalidad para disciplina "${disciplina}"`);
         }
       }
       
-      // Si no se encuentra la modalidad, se registra el alumno sin modalidad
-      // Solo se cobrará la inscripción
+      if (!modalidadEncontrada) {
+        console.log(`⚠️  Alumno se registrará SIN modalidad asignada`);
+      }
       
       // Construir nombre completo
       const nombreCompleto = `${nombre} ${apellido}`;
@@ -331,12 +402,12 @@ const importarAlumnosDesdeExcel = async (data) => {
       
       // Procesar campos adicionales con valores seguros por defecto
       const entrenador = row.ENTRENADOR ? row.ENTRENADOR.toString().trim() : "Sin asignar";
-      const grupo = row.GRUPO ? row.GRUPO.toString().trim() : "Sin asignar";
+      const grupoAdicional = row.GRUPO ? row.GRUPO.toString().trim() : "Sin asignar";
       
       // Procesar costos con validación numérica
       let costoMensualidad = 0; // Default 0 si no hay modalidad
       if (modalidadEncontrada) {
-        costoMensualidad = modalidadEncontrada.precio || 0;
+        costoMensualidad = modalidadEncontrada.costo || 0;
         // Si hay valor en el Excel, usarlo
         if (row.MENSUALIDAD) {
           const mensualidadExcel = parseFloat(row.MENSUALIDAD);
@@ -368,7 +439,7 @@ const importarAlumnosDesdeExcel = async (data) => {
         telefono: telefono,
         correo: correoGenerado,
         entrenador: entrenador,
-        grupo: grupo,
+        grupo: modalidadEncontrada ? modalidadEncontrada.grupo : grupoAdicional,
         costo_mensualidad: costoMensualidad,
         costo_inscripcion_excel: costoInscripcionExcel,
         pagos_realizados: numeroPagosRealizados, // Número de meses pagados (cuenta las X)
@@ -380,6 +451,12 @@ const importarAlumnosDesdeExcel = async (data) => {
       await nuevoAlumno.save();
       resultados.exitosos++;
       resultados.alumnos.push(nuevoAlumno);
+      
+      console.log(`✅ Alumno creado exitosamente: ${nombreCompleto}`);
+      console.log(`   - Matrícula: ${nuevoAlumno.matricula} ${!matricula ? '(generada automáticamente)' : '(del Excel)'}`);
+      console.log(`   - Modalidad: ${modalidadEncontrada ? modalidadEncontrada.nombre : 'SIN MODALIDAD'}`);
+      console.log(`   - Grupo asignado: ${nuevoAlumno.grupo}`);
+      console.log(`   - ID Modalidad: ${nuevoAlumno.id_modalidad || 'null'}`);
       
     } catch (error) {
       resultados.fallidos++;
