@@ -102,8 +102,8 @@ const iniciarTareasProgramadas = () => {
     timezone: "America/Mexico_City"
   });
   
-  // Ejecutar todos los días a las 8:00 PM - Reporte diario automático
-  cron.schedule('0 20 * * *', () => {
+  // Ejecutar todos los días a las 8:30 PM - Reporte diario automático
+  cron.schedule('30 20 * * *', () => {
     console.log('⏰ Iniciando envío automático de reporte diario...');
     enviarReporteAutomatico();
   }, {
@@ -112,7 +112,7 @@ const iniciarTareasProgramadas = () => {
   
   console.log('✅ Tareas programadas iniciadas correctamente');
   console.log('📅 Los recargos se aplicarán automáticamente todos los días a las 5:00 PM');
-  console.log('📧 Los reportes se enviarán automáticamente todos los días a las 8:00 PM');
+  console.log('📧 Los reportes se enviarán automáticamente todos los días a las 8:30 PM');
 };
 
 module.exports = {

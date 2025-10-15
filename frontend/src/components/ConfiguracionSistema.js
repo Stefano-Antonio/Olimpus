@@ -233,14 +233,14 @@ const ConfiguracionSistema = () => {
                 placeholder="correo@ejemplo.com"
               />
               <p className="help-text">
-                Los reportes diarios (Excel + PDF) se enviarán automáticamente a las 8:00 PM a este correo
+                Los reportes diarios (Excel + PDF) se enviarán automáticamente a las 8:30 PM a este correo
               </p>
             </div>
             
             <div className="info-reportes">
               <h4>📋 Información de Reportes Automáticos:</h4>
               <ul>
-                <li><strong>📊 Horario:</strong> Todos los días a las 8:00 PM</li>
+                <li><strong>📊 Horario:</strong> Todos los días a las 8:30 PM</li>
                 <li><strong>📁 Contenido:</strong> Base de alumnos (Excel) + Corte del día (PDF)</li>
                 <li><strong>⚙️ Estado:</strong> {configuracion.emailReportes ? '✅ Configurado' : '⚠️ Sin configurar'}</li>
               </ul>

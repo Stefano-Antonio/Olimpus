@@ -2,7 +2,7 @@
 
 ## 🎯 Funcionalidad Implementada
 
-El sistema ahora incluye un **servicio de reportes automáticos** que envía por correo electrónico todos los días a las **8:00 PM**:
+El sistema ahora incluye un **servicio de reportes automáticos** que envía por correo electrónico todos los días a las **8:30 PM**:
 
 ### 📦 Contenido del Reporte
 1. **📊 Archivo Excel**: Base de datos completa de alumnos (igual al que se descarga manualmente)
@@ -60,7 +60,7 @@ secure: false
 ### 🕐 Horarios Programados
 
 - **5:00 PM diarios**: Aplicación automática de recargos por pagos tardíos
-- **8:00 PM diarios**: Envío automático de reportes
+- **8:30 PM diarios**: Envío automático de reportes
 
 ### 🎮 Controles desde la Interfaz
 
@@ -159,7 +159,7 @@ El sistema genera logs detallados:
 ```
 ✅ Tareas programadas iniciadas correctamente
 📅 Los recargos se aplicarán automáticamente todos los días a las 00:01 AM
-📧 Los reportes se enviarán automáticamente todos los días a las 8:00 PM
+📧 Los reportes se enviarán automáticamente todos los días a las 8:30 PM
 ```
 
 En el envío:

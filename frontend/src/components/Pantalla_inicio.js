@@ -82,7 +82,7 @@ const PantallaInicio = () => {
                     <div className="seccion-reportes">
                         <h3 className="titulo-reportes">📧 Reportes Automáticos</h3>
                         <div className="info-reportes">
-                            <p>🕐 <strong>Envío automático:</strong> Todos los días a las 8:00 PM</p>
+                            <p>🕐 <strong>Envío automático:</strong> Todos los días a las 8:30 PM</p>
                             <p>📋 <strong>Incluye:</strong> Base de alumnos (Excel) + Corte del día (PDF)</p>
                             
                             {configuracionCorreo && (

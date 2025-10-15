@@ -82,7 +82,7 @@ const enviarCorreoReporte = async (archivoExcel, archivoPDF, fechaCorte, totalCo
             <div style="text-align: center; margin-top: 20px; padding-top: 15px; border-top: 1px solid #ddd;">
               <p style="color: #666; font-size: 12px; margin: 0;">
                 📧 Correo generado automáticamente por el Sistema Olimpus Gymnastics<br>
-                🕐 Enviado diariamente a las 8:00 PM
+                🕐 Enviado diariamente a las 8:30 PM
               </p>
             </div>
           </div>
