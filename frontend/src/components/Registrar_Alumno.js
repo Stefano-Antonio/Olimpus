@@ -118,16 +118,13 @@ function Registrar_Alumno() {
   const handleSubmit = (e) => {
     e.preventDefault();
     
-    // Si no hay modalidad seleccionada, registrar directamente sin pago
-    if (!form.id_modalidad) {
-      if (window.confirm("No has seleccionado una modalidad. ¿Deseas registrar al alumno solo con los datos personales?")) {
-        registrarAlumnoSinPago();
-      }
-      return;
-    }
-    
-    // Si hay modalidad, mostrar opciones de pago
+    // Siempre mostrar el modal de opciones de pago, con o sin modalidad
     setMostrarModal(true);
+    
+    // Si no hay modalidad, preseleccionar "Solo Inscripción"
+    if (!form.id_modalidad) {
+      setTipoSeleccionado('inscripcion');
+    }
   };
 
   // Función para registrar alumno sin pago (solo datos personales)
@@ -160,13 +157,18 @@ function Registrar_Alumno() {
       const response = await axios.post("http://localhost:7000/api/alumnos", formData);
       console.log("Alumno agregado:", response.data);
       setAlumnoId(response.data._id); // Guardar el ID del nuevo alumno en la variable
-      toast.success("Alumno agregado con éxito", alumnoId);
+      toast.success("Alumno agregado con éxito");
+      
+      // Limpiar formulario
       setForm({ id_modalidad: "", fecha_nacimiento: "", nombre: "", correo: "", telefono: "" });
       setMostrarModal(false);
       setTipoPago(""); 
       setModalidadSeleccionada(null); // Limpiar modalidad seleccionada 
+      setMontoPersonalizado(undefined);
+      setTipoSeleccionado("");
+      
       return response.data._id; 
-        } catch (error) {
+    } catch (error) {
       console.error("Error al agregar el alumno:", error.response?.data || error);
       toast.error("Hubo un error al agregar el alumno");
     }
@@ -377,7 +379,7 @@ const registrarPagosDetallados = async (id, esAnualidad = false, montoTotalPerso
             
             <div className="alumno-buttons">
               <button type="submit" className="button">
-                {form.id_modalidad ? "Continuar con Pago" : "Registrar Alumno"}
+                Continuar con Registro
               </button>
             </div>
           </form>
@@ -386,10 +388,10 @@ const registrarPagosDetallados = async (id, esAnualidad = false, montoTotalPerso
       {mostrarModal && (
   <div className="modal">
     <div className="modal-content">
-      <h3>Opciones de pago - {modalidadSeleccionada?.nombre || "Modalidad"}</h3>
+      <h3>Opciones de pago - {modalidadSeleccionada?.nombre || "Sin modalidad"}</h3>
       <p>{modalidadSeleccionada ? 
           `Alumno: ${form.nombre} - Modalidad: ${modalidadSeleccionada.nombre}` : 
-          `Registrando alumno: ${form.nombre}`}
+          `Registrando alumno: ${form.nombre} (solo inscripción)`}
       </p>
       
       {/* Selección de tipo de pago */}
@@ -398,7 +400,7 @@ const registrarPagosDetallados = async (id, esAnualidad = false, montoTotalPerso
           Seleccione el tipo de pago:
         </label>
         <div style={{ display: 'flex', gap: '10px', marginBottom: '15px' }}>
-          {costoModalidad ? (
+          {costoModalidad && modalidadSeleccionada ? (
             <>
               <button
                 onClick={() => setTipoSeleccionado('mensual')}
