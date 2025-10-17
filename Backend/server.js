@@ -16,12 +16,15 @@ const cors = require('cors');
 // - excelRoutes: Importación y exportación de datos Excel
 // - entrenadorRoutes: Gestión de entrenadores
 // - reportesRoutes: Envío automático de reportes por correo
+// - gastosRoutes: Gestión de gastos
 const modalidadesRoutes = require('./routes/modalidadesRoutes'); 
 const alumnosRoutes = require('./routes/alumnoRoutes');
 const configuracionRoutes = require('./routes/configuracionRoutes');
 const excelRoutes = require('./routes/excelRoutes');
 const entrenadorRoutes = require('./routes/entrenadorRoutes');
 const reportesRoutes = require('./routes/reportesRoutes');
+const gastosRoutes = require('./routes/gastosRoutes'); // Import gastos routes
+const pagosRoutes = require('./routes/pagosRoutes'); // Import pagos routes
 
 // === IMPORTACIÓN DE MODELOS ===
 const Alumno = require('./models/alumnos'); // Modelo principal de estudiantes
@@ -46,6 +49,8 @@ app.use('/api/configuracion', configuracionRoutes); // Configuración del sistem
 app.use('/api/excel', excelRoutes); // Importación/exportación Excel
 app.use('/api/entrenadores', entrenadorRoutes); // Gestión de entrenadores
 app.use('/api/reportes', reportesRoutes); // Reportes automáticos por correo
+app.use('/api/gastos', gastosRoutes); // Register gastos routes
+app.use('/api/pagos', pagosRoutes); // Integrate pagos routes
 
 // === CONEXIÓN A BASE DE DATOS ===
 // MongoDB Atlas - Base de datos en la nube

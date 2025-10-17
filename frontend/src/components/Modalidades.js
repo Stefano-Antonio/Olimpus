@@ -9,6 +9,10 @@ import { Document, Packer, Paragraph, Table, TableRow, TableCell, TextRun, Align
 import { saveAs } from "file-saver";
 
 function Modalidades() {
+  // Filtro de nombre para la tabla de modalidades
+  const [filtroNombreModalidad, setFiltroNombreModalidad] = useState("");
+  // ...existing code...
+
   const navigate = useNavigate();
   const [mostrarModal, setMostrarModal] = useState(false);
   const [file, setFile] = useState(null); // Almacenar el archivo CSV
@@ -28,15 +32,41 @@ function Modalidades() {
     grupo: ''
   });
 
-  // Estado para entrenadores y modalidades
+  // Estados para entrenadores y modalidades
   const [entrenadores, setEntrenadores] = useState([]);
   const [modalidades, setModalidades] = useState([]);
   const [editandoModalidad, setEditandoModalidad] = useState(null);
   const [modoEdicion, setModoEdicion] = useState(false);
+  const [gruposUsados, setGruposUsados] = useState([]);
   
   // Estados para mostrar/ocultar secciones - solo una puede estar expandida
   const [mostrarFormulario, setMostrarFormulario] = useState(true);
   const [mostrarTabla, setMostrarTabla] = useState(false);
+
+  // Modalidades filtradas y ordenadas por grupo (letra)
+  const modalidadesFiltradas = (modalidades || [])
+    .filter(m => {
+      if (!filtroNombreModalidad) return true;
+      return m.nombre === filtroNombreModalidad;
+    })
+    .sort((a, b) => {
+      // Ordenar por grupo (letra) alfabéticamente
+      if (!a.grupo && !b.grupo) return 0;
+      if (!a.grupo) return 1;
+      if (!b.grupo) return -1;
+      return a.grupo.localeCompare(b.grupo);
+    });
+
+  // Paginación
+  const [paginaActual, setPaginaActual] = useState(1);
+  const modalidadesPorPagina = 5;
+  const totalPaginas = Math.ceil(modalidadesFiltradas.length / modalidadesPorPagina);
+  const inicio = (paginaActual - 1) * modalidadesPorPagina;
+  const fin = inicio + modalidadesPorPagina;
+  const modalidadesPagina = modalidadesFiltradas.slice(inicio, fin);
+
+  // Obtener nombres únicos de modalidades para el select
+  const nombresUnicos = Array.from(new Set((modalidades || []).map(m => m.nombre)));
   
   // Función para alternar formulario
   const toggleFormulario = () => {
@@ -58,6 +88,20 @@ function Modalidades() {
     cargarEntrenadores();
     cargarModalidades();
   }, []);
+
+  // Calcular grupos usados por tipo de modalidad
+  useEffect(() => {
+    if (formData.nombre && modalidades.length > 0) {
+      const modalidadesMismoTipo = modalidades.filter(m => m.nombre === formData.nombre);
+      const grupos = modalidadesMismoTipo
+        .map(m => m.grupo)
+        .filter(g => g && g !== '-')
+        .sort();
+      setGruposUsados(grupos);
+    } else {
+      setGruposUsados([]);
+    }
+  }, [formData.nombre, modalidades]);
 
   const cargarEntrenadores = async () => {
     try {
@@ -327,8 +371,9 @@ function Modalidades() {
 
   const editarModalidad = (modalidad) => {
     console.log('Editando modalidad:', modalidad);
+    console.log('Horarios originales:', modalidad.horarios, 'Tipo:', typeof modalidad.horarios);
     
-    // Parsear los horarios del string guardado (ej: "L-Mi-V:16:00-17:00")
+    // Parsear los horarios del string guardado (ej: "L:16:00-17:00 - Mi:18:00-19:00")
     const horariosReconstruidos = {
       lunes: '',
       martes: '',
@@ -338,12 +383,44 @@ function Modalidades() {
       sabado: ''
     };
 
-    // Si hay horarios guardados, intentar parsearlos
-    if (modalidad.horarios && typeof modalidad.horarios === 'string') {
-      // Ejemplo de formato esperado: "L-Mi-V:16:00-17:00" o "M-J:18:00-19:00"
-      // Por ahora los dejamos vacíos ya que el formato exacto puede variar
-      // Se pueden llenar manualmente en el formulario
+    // Si hay horarios guardados, parsearlos según el formato que venga del backend
+    if (modalidad.horarios) {
+      if (typeof modalidad.horarios === 'object' && modalidad.horarios !== null) {
+        // Si viene como objeto (formato del modelo), usar directamente
+        Object.entries(modalidad.horarios).forEach(([dia, horario]) => {
+          if (horario && horario !== null) {
+            horariosReconstruidos[dia] = horario;
+          }
+        });
+      } else if (typeof modalidad.horarios === 'string') {
+        // Si viene como string (formato de la ruta GET), parsearlo
+        const diasMap = {
+          'L': 'lunes',
+          'M': 'martes', 
+          'Mi': 'miercoles',
+          'J': 'jueves',
+          'V': 'viernes',
+          'S': 'sabado'
+        };
+
+        // Dividir por ' - ' para obtener cada día:horario
+        const partesHorarios = modalidad.horarios.split(' - ');
+        
+        partesHorarios.forEach(parte => {
+          // Buscar patrón: DIA:HORARIO (ej: "L:16:00-17:00")
+          const match = parte.match(/^([A-Za-z]+):(.+)$/);
+          if (match) {
+            const [, diaAbrev, horario] = match;
+            const diaNombre = diasMap[diaAbrev];
+            if (diaNombre) {
+              horariosReconstruidos[diaNombre] = horario;
+            }
+          }
+        });
+      }
     }
+
+    console.log('Horarios reconstruidos:', horariosReconstruidos);
 
     setFormData({
       nombre: modalidad.nombre,
@@ -409,40 +486,51 @@ function Modalidades() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      // Crear el string de horarios
-      const horariosArray = [];
-      const diasAbrev = {
-        lunes: 'L',
-        martes: 'M',
-        miercoles: 'Mi',
-        jueves: 'J',
-        viernes: 'V',
-        sabado: 'S'
-      };
+      // Validar que se haya ingresado al menos un campo requerido
+      if (!formData.nombre.trim()) {
+        toast.error('El nombre de la modalidad es requerido');
+        return;
+      }
 
+      if (!formData.costo || parseFloat(formData.costo) <= 0) {
+        toast.error('El costo debe ser mayor a 0');
+        return;
+      }
+
+      // Procesar horarios - crear objeto en el formato que espera el modelo
+      const horariosParaEnviar = {};
+      
       Object.entries(formData.horarios).forEach(([dia, horario]) => {
-        if (horario && horario !== '') {
-          horariosArray.push(`${diasAbrev[dia]}:${horario}`);
+        if (horario && horario.trim() !== '' && horario !== '-') {
+          horariosParaEnviar[dia] = horario.trim();
+        } else {
+          horariosParaEnviar[dia] = null;
         }
       });
 
       const modalidadData = {
-        nombre: formData.nombre,
-        horarios: horariosArray.join(' - '),
+        nombre: formData.nombre.trim(),
+        horarios: horariosParaEnviar,
         costo: parseFloat(formData.costo),
         id_entrenador: formData.id_entrenador || null,
-        grupo: formData.grupo || null
+        grupo: formData.grupo?.trim() || null
       };
+
+      console.log('Datos a enviar:', modalidadData);
 
       if (modoEdicion) {
         // Actualizar modalidad existente
-        await axios.put(`http://localhost:7000/api/modalidad/${editandoModalidad}`, modalidadData);
+        const response = await axios.put(`http://localhost:7000/api/modalidad/${editandoModalidad}`, modalidadData);
+        console.log('Modalidad actualizada:', response.data);
         toast.success('Modalidad actualizada exitosamente');
         cancelarEdicion();
       } else {
         // Crear nueva modalidad
-        await axios.post('http://localhost:7000/api/modalidad', modalidadData);
+        const response = await axios.post('http://localhost:7000/api/modalidad', modalidadData);
+        console.log('Modalidad creada:', response.data);
         toast.success('Modalidad agregada exitosamente');
+        
+        // Limpiar formulario después de crear
         setFormData({
           nombre: '',
           horarios: { lunes: '', martes: '', miercoles: '', jueves: '', viernes: '', sabado: '' },
@@ -452,6 +540,7 @@ function Modalidades() {
         });
       }
       
+      // Recargar la lista de modalidades para reflejar los cambios
       await cargarModalidades();
     } catch (error) {
       console.error('Error al procesar modalidad:', error);
@@ -539,7 +628,17 @@ return (
                 style={{ textTransform: 'uppercase' }}
               />
               <p className="help-text">
-                Letra que identifica esta modalidad para importación Excel. Se asigna automáticamente si se deja vacío.
+                Letra que identifica esta modalidad para importación Excel. Cada modalidad del mismo tipo (nombre) debe tener una letra diferente. Se asigna automáticamente si se deja vacío.
+                {formData.nombre && gruposUsados.length > 0 && (
+                  <span style={{ display: 'block', marginTop: '5px', fontWeight: 'bold', color: '#e74c3c' }}>
+                    🚫 Grupos ya usados en "{formData.nombre}": {gruposUsados.join(', ')}
+                  </span>
+                )}
+                {formData.nombre && gruposUsados.length === 0 && (
+                  <span style={{ display: 'block', marginTop: '5px', fontWeight: 'bold', color: '#27ae60' }}>
+                    ✅ Primer grupo para "{formData.nombre}" - se asignará "A" automáticamente
+                  </span>
+                )}
               </p>
             </div>
           </div>
@@ -614,92 +713,149 @@ return (
         </button>
       </div>
       
-      <div className={`modalidades-existentes ${mostrarTabla ? 'visible' : 'hidden'}`}>
+      <div className={`modalidades-existentes ${mostrarTabla ? 'visible' : 'hidden'}`} style={{flex: 1, minHeight: '350px', display: 'flex', flexDirection: 'column', justifyContent: 'flex-start'}}>
+        {/* Filtro de nombre y paginación juntos */}
+        <div style={{ margin: '10px 0', display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+          <label htmlFor="filtro-nombre" style={{ fontWeight: 'bold' }}>Filtrar por nombre:</label>
+          <select
+            id="filtro-nombre"
+            value={filtroNombreModalidad}
+            onChange={e => {
+              setFiltroNombreModalidad(e.target.value);
+              setPaginaActual(1); // Resetear a la primera página al cambiar filtro
+            }}
+            style={{ padding: '6px 12px', borderRadius: '6px', border: '1px solid #ccc', minWidth: '200px' }}
+          >
+            <option value="">Todas</option>
+            {nombresUnicos.map(nombre => (
+              <option key={nombre} value={nombre}>{nombre}</option>
+            ))}
+          </select>
+          {/* Paginación al lado del filtro */}
+          {totalPaginas > 1 && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginLeft: '10px' }}>
+              <button
+                onClick={() => setPaginaActual(p => Math.max(1, p - 1))}
+                disabled={paginaActual === 1}
+                style={{ padding: '4px 10px', borderRadius: '4px', border: '1px solid #ccc', background: paginaActual === 1 ? '#eee' : '#fff', cursor: paginaActual === 1 ? 'not-allowed' : 'pointer' }}
+              >
+                ◀
+              </button>
+              {Array.from({ length: totalPaginas }, (_, i) => (
+                <button
+                  key={i + 1}
+                  onClick={() => setPaginaActual(i + 1)}
+                  style={{
+                    padding: '4px 10px',
+                    borderRadius: '4px',
+                    border: '1px solid #ccc',
+                    background: paginaActual === i + 1 ? '#007bff' : '#fff',
+                    color: paginaActual === i + 1 ? '#fff' : '#333',
+                    fontWeight: paginaActual === i + 1 ? 'bold' : 'normal',
+                    cursor: 'pointer',
+                  }}
+                >
+                  {i + 1}
+                </button>
+              ))}
+              <button
+                onClick={() => setPaginaActual(p => Math.min(totalPaginas, p + 1))}
+                disabled={paginaActual === totalPaginas}
+                style={{ padding: '4px 10px', borderRadius: '4px', border: '1px solid #ccc', background: paginaActual === totalPaginas ? '#eee' : '#fff', cursor: paginaActual === totalPaginas ? 'not-allowed' : 'pointer' }}
+              >
+                ▶
+              </button>
+            </div>
+          )}
+        </div>
         {console.log('Estado actual de modalidades:', modalidades)}
-        {modalidades.length === 0 ? (
+        {modalidadesFiltradas.length === 0 ? (
           <p className="no-modalidades">No hay modalidades registradas</p>
         ) : (
-          <div className="table-container">
-            <table className="modalidades-table">
-              <thead>
-                <tr>
-                  <th>Grupo</th>
-                  <th>Nombre</th>
-                  <th>Horarios</th>
-                  <th>Costo</th>
-                  <th>Entrenador</th>
-                  <th>Alumnos</th>
-                  <th>Acciones</th>
-                </tr>
-              </thead>
-              <tbody>
-                {modalidades.map((modalidad) => (
-                  <tr key={modalidad._id}>
-                    <td>
-                      <span className="grupo-badge">
-                        {modalidad.grupo || '-'}
-                      </span>
-                    </td>
-                    <td>{modalidad.nombre}</td>
-                    <td>{modalidad.horarios}</td>
-                    <td>${modalidad.costo}</td>
-                    <td>
-                      <select
-                        value={modalidad.id_entrenador || ''}
-                        onChange={async (e) => {
-                          try {
-                            await axios.put(`http://localhost:7000/api/modalidad/${modalidad._id}`, {
-                              ...modalidad,
-                              id_entrenador: e.target.value || null
-                            });
-                            await cargarModalidades();
-                            toast.success('Entrenador actualizado');
-                          } catch (error) {
-                            toast.error('Error al actualizar entrenador');
-                          }
-                        }}
-                        className="entrenador-select"
-                      >
-                        <option value="">Sin entrenador</option>
-                        {entrenadores.map((entrenador) => (
-                          <option key={entrenador._id} value={entrenador._id}>
-                            {entrenador.nombre}
-                          </option>
-                        ))}
-                      </select>
-                    </td>
-                    <td>
-                      <button
-                        onClick={() => descargarListaAsistencia(modalidad)}
-                        className="btn-lista-asistencia"
-                        title="Descargar lista de asistencia en Word"
-                      >
-                        📋 Lista
-                      </button>
-                    </td>
-                    <td>
-                      <div className="modalidad-acciones">
-                        <button
-                          onClick={() => eliminarModalidad(modalidad._id, modalidad.nombre)}
-                          className="btn-eliminar-modalidad"
-                          title="Eliminar modalidad"
-                        >
-                          🗑️
-                        </button>
-                        <button
-                          onClick={() => editarModalidad(modalidad)}
-                          className="btn-editar-modalidad"
-                          title="Editar modalidad"
-                        >
-                          ✏️
-                        </button>
-                      </div>
-                    </td>
+          <>
+            <div className="table-container" style={{overflowX: 'auto', width: '100%', maxWidth: '100%', maxHeight: '400px', marginBottom: '20px', boxSizing: 'border-box'}}>
+              <table className="modalidades-table" style={{minWidth: '700px', width: '100%', tableLayout: 'auto'}}>
+                <thead>
+                  <tr>
+                    <th>Grupo</th>
+                    <th>Nombre</th>
+                    <th>Horarios</th>
+                    <th>Costo</th>
+                    <th>Entrenador</th>
+                    <th>Alumnos</th>
+                    <th>Acciones</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {modalidadesPagina.map((modalidad) => (
+                    <tr key={modalidad._id}>
+                      <td>
+                        <span className="grupo-badge">
+                          {modalidad.grupo || '-'}
+                        </span>
+                      </td>
+                      <td>{modalidad.nombre}</td>
+                      <td>{modalidad.horarios}</td>
+                      <td>${modalidad.costo}</td>
+                      <td>
+                        <select
+                          value={modalidad.id_entrenador || ''}
+                          onChange={async (e) => {
+                            try {
+                              await axios.put(`http://localhost:7000/api/modalidad/${modalidad._id}`, {
+                                ...modalidad,
+                                id_entrenador: e.target.value || null
+                              });
+                              await cargarModalidades();
+                              toast.success('Entrenador actualizado');
+                            } catch (error) {
+                              toast.error('Error al actualizar entrenador');
+                            }
+                          }}
+                          className="entrenador-select"
+                        >
+                          <option value="">Sin entrenador</option>
+                          {entrenadores.map((entrenador) => (
+                            <option key={entrenador._id} value={entrenador._id}>
+                              {entrenador.nombre}
+                            </option>
+                          ))}
+                        </select>
+                      </td>
+                      <td>
+                        <button
+                          onClick={() => descargarListaAsistencia(modalidad)}
+                          className="btn-lista-asistencia"
+                          title="Descargar lista de asistencia en Word"
+                        >
+                          📋 Lista
+                        </button>
+                      </td>
+                      <td>
+                        <div className="modalidad-acciones">
+                          <button
+                            onClick={() => eliminarModalidad(modalidad._id, modalidad.nombre)}
+                            className="btn-eliminar-modalidad"
+                            title="Eliminar modalidad"
+                          >
+                            🗑️
+                          </button>
+                          <button
+                            onClick={() => editarModalidad(modalidad)}
+                            className="btn-editar-modalidad"
+                            title="Editar modalidad"
+                          >
+                            ✏️
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            {/* Paginación movida al lado del filtro */}
+          </>
         )}
       </div>
     </div>

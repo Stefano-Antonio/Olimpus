@@ -201,29 +201,39 @@ const importarAlumnosDesdeExcel = async (data) => {
     registrosRechazados: []
   };
   
-  // Obtener todas las modalidades para mapear por grupo y disciplina
+
+  // Obtener todas las modalidades para mapear por grupo y disciplina (nombre completo y abreviado)
   const modalidades = await Modalidad.find();
-  const modalidadesMapGrupo = {}; // Mapeo por grupo (letra)
-  const modalidadesMapNombre = {}; // Mapeo por nombre/disciplina (fallback)
-  
+
+  // Mapeo compuesto: { [nombreModalidad]: { [grupo]: modalidad } }
+  const modalidadesMapCompuesto = {};
+  const modalidadesMapNombre = {};
+  const modalidadesMapAbreviado = {};
+  const abreviaturas = {
+    'pk': 'parkour',
+    'gaf': 'gimnasia femenil',
+    'bg': 'baby gym'
+  };
+
   console.log('=== MODALIDADES DISPONIBLES ===');
   modalidades.forEach(m => {
-    console.log(`Modalidad: "${m.nombre}", Grupo: "${m.grupo || 'SIN GRUPO'}", ID: ${m._id}`);
-    // Mapear por grupo si existe
-    if (m.grupo) {
-      modalidadesMapGrupo[m.grupo.toUpperCase()] = m;
+    const nombreLower = m.nombre.toLowerCase();
+    if (!modalidadesMapCompuesto[nombreLower]) modalidadesMapCompuesto[nombreLower] = {};
+    if (m.grupo) modalidadesMapCompuesto[nombreLower][m.grupo.toUpperCase()] = m;
+    modalidadesMapNombre[nombreLower] = m;
+    for (const [abr, nombreCompleto] of Object.entries(abreviaturas)) {
+      if (nombreLower === nombreCompleto) modalidadesMapAbreviado[abr] = m;
     }
-    // Mapear por nombre para fallback
-    modalidadesMapNombre[m.nombre.toLowerCase()] = m;
   });
-  
+
+  console.log('=== MAPEOS COMPUESTOS ===');
+  Object.entries(modalidadesMapCompuesto).forEach(([nombre, grupos]) => {
+    console.log(`Modalidad: ${nombre} => Grupos:`, Object.keys(grupos));
+  });
+
   console.log('=== MAPEOS CREADOS ===');
-  console.log('Grupos disponibles:', Object.keys(modalidadesMapGrupo));
   console.log('Nombres disponibles:', Object.keys(modalidadesMapNombre));
-  
-  if (Object.keys(modalidadesMapGrupo).length === 0) {
-    console.log('⚠️  ADVERTENCIA: No hay modalidades con grupos asignados');
-  }
+  console.log('Abreviados disponibles:', Object.keys(modalidadesMapAbreviado));
   
   // Obtener todas las matrículas existentes para evitar duplicados
   const matriculasExistentes = new Set();
@@ -299,52 +309,30 @@ const importarAlumnosDesdeExcel = async (data) => {
         continue;
       }
       
-      // Buscar modalidad por grupo (prioridad) o por disciplina (fallback)
+      // Buscar modalidad por grupo y tipo (nombre completo o abreviado)
       let modalidadEncontrada = null;
-      
       console.log(`Buscando modalidad...`);
-      
-      // 1. Buscar por grupo si está especificado
-      if (grupo && grupo !== '') {
-        console.log(`Buscando por grupo: "${grupo}"`);
-        console.log(`¿Grupo existe en mapa?`, grupo in modalidadesMapGrupo);
-        console.log(`Modalidades disponibles por grupo:`, Object.keys(modalidadesMapGrupo));
-        
-        if (modalidadesMapGrupo[grupo]) {
-          modalidadEncontrada = modalidadesMapGrupo[grupo];
-          console.log(`✅ Modalidad encontrada por grupo "${grupo}":`, modalidadEncontrada.nombre);
-        } else {
-          // Buscar directamente en la base de datos por si acaso
-          console.log(`Buscando directamente en BD por grupo "${grupo}"`);
-          const modalidadPorGrupo = await Modalidad.findOne({ grupo: grupo });
-          if (modalidadPorGrupo) {
-            modalidadEncontrada = modalidadPorGrupo;
-            console.log(`✅ Modalidad encontrada en BD por grupo "${grupo}":`, modalidadEncontrada.nombre);
-          } else {
-            console.log(`❌ No se encontró modalidad para grupo "${grupo}" ni en mapa ni en BD`);
-          }
-        }
-      } else {
-        console.log(`No hay grupo especificado o está vacío`);
+
+      // Normalizar disciplina
+      let disciplinaLower = disciplina.toLowerCase();
+      if (abreviaturas[disciplinaLower]) {
+        disciplinaLower = abreviaturas[disciplinaLower];
       }
-      
-      // 2. Si no se encuentra por grupo, buscar por disciplina
-      if (!modalidadEncontrada && disciplina && disciplina !== '') {
-        console.log(`Buscando por disciplina: "${disciplina}"`);
-        for (const modalidadNombre in modalidadesMapNombre) {
-          if (modalidadNombre.toLowerCase() === disciplina.toLowerCase()) {
-            modalidadEncontrada = modalidadesMapNombre[modalidadNombre];
-            console.log(`✅ Modalidad encontrada por disciplina "${disciplina}":`, modalidadEncontrada.nombre);
-            break;
-          }
-        }
-        if (!modalidadEncontrada) {
-          console.log(`❌ No se encontró modalidad para disciplina "${disciplina}"`);
+
+      // 1. Buscar por grupo y modalidad
+      if (grupo && grupo !== '' && disciplinaLower) {
+        if (
+          modalidadesMapCompuesto[disciplinaLower] &&
+          modalidadesMapCompuesto[disciplinaLower][grupo]
+        ) {
+          modalidadEncontrada = modalidadesMapCompuesto[disciplinaLower][grupo];
+          console.log(`✅ Modalidad encontrada por grupo "${grupo}" y disciplina "${disciplinaLower}":`, modalidadEncontrada.nombre);
         }
       }
-      
+
+      // 2. Si no se encuentra por grupo y modalidad, NO asignar modalidad aunque exista por nombre o abreviado
       if (!modalidadEncontrada) {
-        console.log(`⚠️  Alumno se registrará SIN modalidad asignada`);
+        console.log(`❌ No se encontró modalidad exacta para grupo "${grupo}" y disciplina "${disciplinaLower}". Alumno se registrará SIN modalidad asignada.`);
       }
       
       // Construir nombre completo

@@ -14,6 +14,7 @@ const ModalidadSchema = new Schema({
   
   // === GRUPO IDENTIFICADOR ===
   // Letra mayúscula que identifica la modalidad para importaciones Excel (A, B, C, D...)
+  // Ahora es único por tipo de modalidad, no globalmente único
   grupo: { 
     type: String, 
     required: false,
@@ -22,9 +23,8 @@ const ModalidadSchema = new Schema({
         return !v || /^[A-Z]$/.test(v); // Solo letras mayúsculas
       },
       message: 'El grupo debe ser una letra mayúscula (A-Z)'
-    },
-    unique: true,
-    sparse: true // Permite que sea null y único a la vez
+    }
+    // Removido unique: true para permitir la misma letra en diferentes modalidades
   },
   
   // === ENTRENADOR ASIGNADO ===
@@ -50,6 +50,14 @@ const ModalidadSchema = new Schema({
   // === COSTO MENSUAL ===
   // Este valor se usa para calcular deudas automáticamente
   costo: { type: Number, required: true } // Costo en pesos mexicanos (MXN)
+});
+
+// Índice compuesto para asegurar que no haya duplicados de nombre+grupo
+// Permite que diferentes modalidades tengan la misma letra, pero no la misma modalidad
+ModalidadSchema.index({ nombre: 1, grupo: 1 }, { 
+  unique: true, 
+  sparse: true, // Permite valores null en grupo
+  name: 'nombre_grupo_unique'
 });
 
 module.exports = mongoose.model('Modalidad', ModalidadSchema);

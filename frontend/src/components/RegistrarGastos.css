@@ -1,0 +1,83 @@
+.registrar-gastos-container {
+  padding: 20px;
+  max-width: 600px;
+  margin: 0 auto;
+  background-color: #f9f9f9;
+  border-radius: 8px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.registrar-gastos-title {
+  font-size: 24px;
+  font-weight: bold;
+  text-align: center;
+  margin-bottom: 20px;
+  color: #333;
+}
+
+.registrar-gastos-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.registrar-gastos-input {
+  padding: 10px;
+  font-size: 16px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
+.registrar-gastos-button {
+  padding: 10px;
+  font-size: 16px;
+  background-color: #4caf50;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.registrar-gastos-button:hover {
+  background-color: #45a049;
+}
+
+.registrar-gastos-list {
+  list-style: none;
+  padding: 0;
+}
+
+.registrar-gastos-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  margin-bottom: 10px;
+  background-color: #fff;
+}
+
+.registrar-gastos-name {
+  font-weight: bold;
+  color: #333;
+}
+
+.registrar-gastos-amount {
+  color: #666;
+}
+
+.registrar-gastos-delete-button {
+  padding: 5px 10px;
+  font-size: 14px;
+  background-color: #f44336;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.registrar-gastos-delete-button:hover {
+  background-color: #e53935;
+}

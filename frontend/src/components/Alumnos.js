@@ -29,6 +29,13 @@ const Alumnos = () => {
   const [resultadoImport, setResultadoImport] = useState(null);
   // Estado para filtro de alumnos activos/inactivos
   const [filtroEstado, setFiltroEstado] = useState('todos'); // 'todos', 'activos', 'inactivos'
+  // Estado para filtro por modalidad
+  const [filtroModalidad, setFiltroModalidad] = useState('');
+  // Estado para filtro por estado de pagos
+  const [filtroEstadoPago, setFiltroEstadoPago] = useState('todos'); // 'todos', 'al-dia', 'retrasados'
+  // Add state for pagination
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 15;
   // Removed unused declaration
   const navigate = useNavigate();
 
@@ -372,8 +379,16 @@ useEffect(() => {
     if (filtroEstado === 'activos' && alumno.activo === false) return false;
     if (filtroEstado === 'inactivos' && alumno.activo !== false) return false;
 
+    // Filtro por modalidad
     const modalidadId = alumno.id_modalidad ? (alumno.id_modalidad._id || alumno.id_modalidad) : null;
-    const modalidad = obtenerNombreModalidad(modalidadId)?.toLowerCase() || "";
+    const modalidadNombre = obtenerNombreModalidad(modalidadId);
+    if (filtroModalidad && modalidadNombre !== filtroModalidad) return false;
+
+    // Filtro por estado de pagos
+    if (filtroEstadoPago === 'al-dia' && alumno.estado_pago !== 'verde') return false;
+    if (filtroEstadoPago === 'retrasados' && alumno.estado_pago !== 'rojo') return false;
+
+    const modalidad = modalidadNombre?.toLowerCase() || "";
     const horario = modalidadId ? obtenerHorarioModalidad(modalidadId)?.toLowerCase() || "" : "";
     const grupo = obtenerGrupoModalidad(modalidadId)?.toLowerCase() || "";
     const fechaInscripcion = new Date(alumno.fecha_inscripcion).toLocaleDateString('es-MX') || "";
@@ -386,9 +401,31 @@ useEffect(() => {
         grupo.includes(searchTerm.toLowerCase()) ||
         fechaInscripcion.includes(searchTerm.toLowerCase())
     );
-});
+  });
 
- const handlePagoEfectivoOTransferencia = async (alumno, costo) => {
+  // Calculate total pages
+  const totalPages = Math.ceil(alumnosFiltrados.length / itemsPerPage);
+
+  // Slice alumnosFiltrados for pagination
+  const alumnosPaginados = alumnosFiltrados.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+
+  // Pagination handlers
+  const handleNextPage = () => {
+    if (currentPage < totalPages) {
+      setCurrentPage(currentPage + 1);
+    }
+  };
+
+  const handlePreviousPage = () => {
+    if (currentPage > 1) {
+      setCurrentPage(currentPage - 1);
+    }
+  };
+
+  const handlePagoEfectivoOTransferencia = async (alumno, costo) => {
     try {
 
         const id= alumno._id;
@@ -488,15 +525,47 @@ return (
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="search-bar"
                 />
-                <select 
-                  value={filtroEstado} 
-                  onChange={(e) => setFiltroEstado(e.target.value)}
-                  className="filtro-estado"
-                >
-                  <option value="todos">👥 Todos los alumnos</option>
-                  <option value="activos">✅ Solo activos</option>
-                  <option value="inactivos">💤 Solo inactivos</option>
-                </select>
+                <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                  {/* Filtro por estado activo/inactivo */}
+                  <select 
+                    value={filtroEstado} 
+                    onChange={(e) => setFiltroEstado(e.target.value)}
+                    className="filtro-estado"
+                    style={{ width: '140px', minWidth: '100px', backgroundColor: '#f0f9ff', border: '2px solid #3b82f6', borderRadius: '6px', padding: '5px', fontSize: '14px' }}
+                  >
+                    <option value="todos">👥 Todos los alumnos</option>
+                    <option value="activos">✅ Solo activos</option>
+                    <option value="inactivos">💤 Solo inactivos</option>
+                  </select>
+                  {/* Filtro por modalidad */}
+                  <select
+                    value={filtroModalidad}
+                    onChange={(e) => {
+                      setFiltroModalidad(e.target.value);
+                      if (currentPage > 1) {
+                        setCurrentPage(1);
+                      }
+                    }}
+                    className="filtro-modalidad"
+                    style={{ width: '140px', minWidth: '100px', backgroundColor: '#f0f9ff', border: '2px solid #3b82f6', borderRadius: '6px', padding: '5px', fontSize: '14px' }}
+                  >
+                    <option value="">Todas las modalidades</option>
+                    {Array.from(new Set(modalidades.map(m => m.nombre))).map(nombre => (
+                      <option key={nombre} value={nombre}>{nombre}</option>
+                    ))}
+                  </select>
+                  {/* Filtro por estado de pagos */}
+                  <select
+                    value={filtroEstadoPago}
+                    onChange={e => setFiltroEstadoPago(e.target.value)}
+                    className="filtro-estado-pago"
+                    style={{ width: '140px', minWidth: '100px', backgroundColor: '#f0f9ff', border: '2px solid #3b82f6', borderRadius: '6px', padding: '5px', fontSize: '14px' }}
+                  >
+                    <option value="todos">💳 Todos los estados</option>
+                    <option value="al-dia">🟢 Al día</option>
+                    <option value="retrasados">🔴 Retrasados</option>
+                  </select>
+                </div>
               </div>
               <div className="excel-actions">
                 <button onClick={handleDescargarPlantilla} className="btn-plantilla">
@@ -508,10 +577,63 @@ return (
                 <button onClick={handleExportarExcel} className="btn-exportar">
                   📥 Descargar Excel
                 </button>
+                {/* Add a button to navigate to the "Registrar Gastos" screen */}
+                <button onClick={() => navigate('/registrar-gastos')} className="btn-registrar-gastos" style={{
+                  padding: '10px 15px',
+                  backgroundColor: '#f59e0b',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '6px',
+                  fontSize: '14px',
+                  cursor: 'pointer',
+                  marginLeft: '10px',
+                }}>
+                  Registrar Gastos
+                </button>
               </div>
             </div>
-
-            {alumnosFiltrados.length > 0 ? (
+            
+            {/* Pagination controls */}
+            <div className="pagination-controls" style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px',
+              marginTop: '10px', // Add spacing to separate from other elements
+              justifyContent: 'center', // Center align the controls
+            }}>
+              <button
+                onClick={handlePreviousPage}
+                disabled={currentPage === 1}
+                style={{
+                  padding: '8px 12px',
+                  border: '1px solid #ccc',
+                  borderRadius: '4px',
+                  backgroundColor: currentPage === 1 ? '#e0e0e0' : '#3b82f6',
+                  color: currentPage === 1 ? '#888' : '#fff',
+                  cursor: currentPage === 1 ? 'not-allowed' : 'pointer',
+                }}
+              >
+                Anterior
+              </button>
+              <span style={{ fontSize: '14px', fontWeight: 'bold' }}>
+                Página {currentPage} de {totalPages}
+              </span>
+              <button
+                onClick={handleNextPage}
+                disabled={currentPage === totalPages}
+                style={{
+                  padding: '8px 12px',
+                  border: '1px solid #ccc',
+                  borderRadius: '4px',
+                  backgroundColor: currentPage === totalPages ? '#e0e0e0' : '#3b82f6',
+                  color: currentPage === totalPages ? '#888' : '#fff',
+                  cursor: currentPage === totalPages ? 'not-allowed' : 'pointer',
+                }}
+              >
+                Siguiente
+              </button>
+            </div>
+            {alumnosPaginados.length > 0 ? (
                 <div className="alumno-scrollable-table">
                     <div className="corte-dia-section">
                     <div>
@@ -532,8 +654,19 @@ return (
                   >
                     📅 Hoy
                   </button>
+                  <select 
+                    value={filtroEstado} 
+                    onChange={(e) => setFiltroEstado(e.target.value)}
+                    className="filtro-estado"
+                    style={{ width: '140px', minWidth: '100px', backgroundColor: '#f0f9ff', border: '2px solid #3b82f6', borderRadius: '6px', padding: '5px', fontSize: '14px' }}
+                  >
+                    <option value="todos">👥 Todos los alumnos</option>
+                    <option value="activos">✅ Solo activos</option>
+                    <option value="inactivos">💤 Solo inactivos</option>
+                  </select>
+                  
                 </div>
-
+                
                 {totalCorte > 0 && (
                     <div className="total-corte">
                         <p><strong>Total pagado del día: ${totalCorte}</strong></p>
@@ -601,7 +734,7 @@ return (
                             </tr>
                         </thead>
                         <tbody>
-                            {alumnosFiltrados
+                            {alumnosPaginados
                               .sort((a, b) => {
                                 // Ordenar: rojos primero, luego amarillos, luego verdes
                                 const prioridad = { rojo: 0, amarillo: 1, verde: 2 };
@@ -633,16 +766,16 @@ return (
                                     </td>
                                     <td>
                                         <select
-                                            value={alumno.id_modalidad ? (alumno.id_modalidad._id || alumno.id_modalidad) : ""}
-                                            onChange={(e) => handleModalidadChange(alumno._id, e.target.value)}
-                                        >
-                                            <option value="">Sin modalidad</option>
-                                            {modalidades.map((modalidad) => (
-                                                <option key={modalidad._id} value={modalidad._id}>
-                                                    {modalidad.nombre} - {modalidad.horarios} - ${modalidad.costo || modalidad.precio || 0}
-                                                </option>
-                                            ))}
-                                        </select>
+                      value={alumno.id_modalidad ? (alumno.id_modalidad._id || alumno.id_modalidad) : ""}
+                      onChange={(e) => handleModalidadChange(alumno._id, e.target.value)}
+                    >
+                      <option value="">Sin modalidad</option>
+                      {modalidades.map((modalidad) => (
+                        <option key={modalidad._id} value={modalidad._id}>
+                          {modalidad.nombre} {modalidad.grupo ? `[${modalidad.grupo}]` : ''} - {modalidad.horarios} - ${modalidad.costo || modalidad.precio || 0}
+                        </option>
+                      ))}
+                    </select>
                                     </td>
                                     <td>
                                         {obtenerNombreEntrenador(alumno.id_modalidad ? (alumno.id_modalidad._id || alumno.id_modalidad) : null)}
@@ -724,7 +857,7 @@ return (
                                     return;
                                 }
                                 
-                                const costoPorMes = alumnoSeleccionado?.deuda_total / alumnoSeleccionado?.pago_pendiente;
+                                const costoPorMes = alumnoSeleccionado?.deuda_total / alumnoSeleccionado?.pago_apagar;
 
                                 setAlumnoSeleccionado((prev) => ({
                                     ...prev,
@@ -738,7 +871,7 @@ return (
                         >
                             <option value="">Seleccione meses</option>
                             <option value="11">Anualidad</option>
-                            {Array.from({ length: Math.max(alumnoSeleccionado?.pago_pendiente || 0, 12) }, (_, i) => i + 1).map((mes) => (
+                            {Array.from({ length: Math.max(alumnoSeleccionado?.pago_apagar || 0, 12) }, (_, i) => i + 1).map((mes) => (
                                 <option key={mes} value={mes}>
                                     {mes} {mes === 1 ? "mes" : "meses"}
                                 </option>
@@ -994,6 +1127,7 @@ return (
                     </div>
                 </div>
             )}
+
         </div>
     </div>
 );

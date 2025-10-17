@@ -14,6 +14,7 @@ import Alumnos from './components/Alumnos'; // Lista y gestión de alumnos regis
 import Registrar_Alumno from './components/Registrar_Alumno'; // Formulario de nuevo registro
 import Modalidades from './components/Modalidades.js'; // Gestión de clases/modalidades
 import ConfiguracionSistema from './components/ConfiguracionSistema'; // Configuración del sistema
+import RegistrarGastos from './components/RegistrarGastos'; // Formulario de registro de gastos
 
 // === IMPORTACIÓN DE ESTILOS ===
 import './App.css'; // Estilos globales
@@ -43,6 +44,9 @@ function App() {
                     
                     {/* Configuración del sistema - Fechas de pago y recargos */}
                     <Route path="/configuracion" element={<ConfiguracionSistema />} />
+                    
+                    {/* Formulario de registro de gastos */}
+                    <Route path="/registrar-gastos" element={<RegistrarGastos />} />
                     
                     {/* NOTA PARA IA: Rutas futuras pueden incluir:
                         - /reportes (reportes detallados)

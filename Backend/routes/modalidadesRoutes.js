@@ -4,13 +4,18 @@ const Modalidad = require('../models/modalidades');
 const Alumno = require('../models/alumnos');
 const Pago = require('../models/pagos');
 
-// Función auxiliar para obtener la siguiente letra disponible
-async function obtenerSiguienteGrupo() {
+// Función auxiliar para obtener la siguiente letra disponible por tipo de modalidad
+async function obtenerSiguienteGrupoPorModalidad(nombreModalidad) {
     try {
-        const modalidadesConGrupo = await Modalidad.find({ grupo: { $ne: null } }).sort({ grupo: 1 });
-        const gruposUsados = modalidadesConGrupo.map(m => m.grupo);
+        // Buscar todas las modalidades del mismo tipo (nombre) que tienen grupo asignado
+        const modalidadesMismoTipo = await Modalidad.find({ 
+            nombre: nombreModalidad,
+            grupo: { $ne: null } 
+        }).sort({ grupo: 1 });
         
-        // Buscar la primera letra disponible desde A
+        const gruposUsados = modalidadesMismoTipo.map(m => m.grupo);
+        
+        // Buscar la primera letra disponible desde A para este tipo de modalidad
         for (let i = 65; i <= 90; i++) { // A-Z en ASCII
             const letra = String.fromCharCode(i);
             if (!gruposUsados.includes(letra)) {
@@ -18,9 +23,9 @@ async function obtenerSiguienteGrupo() {
             }
         }
         
-        return null; // No hay letras disponibles
+        return null; // No hay letras disponibles para este tipo
     } catch (error) {
-        console.error('Error al obtener siguiente grupo:', error);
+        console.error('Error al obtener siguiente grupo por modalidad:', error);
         return null;
     }
 }
@@ -29,18 +34,31 @@ async function obtenerSiguienteGrupo() {
 router.post('/', async (req, res) => {
     const { nombre, horarios, costo, id_entrenador, grupo } = req.body;
     console.log('Datos recibidos para crear la materia:', req.body);
+    // Log para depuración
+    console.log(`[DEBUG] Intentando crear modalidad: nombre="${nombre}", grupo="${grupo}"`);
 
     try {
-        // Verificar si ya existe una modalidad con el mismo nombre y horarios
-        const existingModalidad = await Modalidad.findOne({ nombre, horarios, costo });
-        if (existingModalidad) {
-            return res.status(400).json({ message: 'Ya existe una modalidad con este nombre y horarios' });
-        }
-
-        // Asignar grupo automáticamente si no se proporciona
+        // Asignar grupo automáticamente si no se proporciona (por tipo de modalidad)
         let grupoAsignado = grupo;
         if (!grupoAsignado) {
-            grupoAsignado = await obtenerSiguienteGrupo();
+            grupoAsignado = await obtenerSiguienteGrupoPorModalidad(nombre);
+        }
+
+        console.log(`[DEBUG] Grupo asignado final: nombre="${nombre}", grupo="${grupoAsignado}"`);
+
+        // Verificar si ya existe una modalidad con el mismo nombre y grupo
+        if (grupoAsignado) {
+            console.log(`[DEBUG] Buscando si existe modalidad con nombre="${nombre}" y grupo="${grupoAsignado}"`);
+            const existingModalidadGrupo = await Modalidad.findOne({ 
+                nombre: nombre, 
+                grupo: grupoAsignado 
+            });
+            if (existingModalidadGrupo) {
+                console.log(`[DEBUG] Ya existe:`, existingModalidadGrupo);
+                return res.status(400).json({ 
+                    message: `Ya existe una modalidad "${nombre}" con el grupo "${grupoAsignado}"` 
+                });
+            }
         }
 
         // Crear la modalidad con el entrenador y grupo
@@ -94,7 +112,7 @@ router.get('/', async (req, res) => {
                 nombre: modalidad.nombre,
                 horarios: `${dias.join('-')}-${horaComun}`,
                 costo: modalidad.costo,
-                grupo: modalidad.grupo || 'Sin grupo',
+                grupo: modalidad.grupo || '-',
                 entrenador: modalidad.id_entrenador ? modalidad.id_entrenador.nombre : 'Sin entrenador',
                 id_entrenador: modalidad.id_entrenador ? modalidad.id_entrenador._id : null
             };
@@ -115,6 +133,26 @@ router.put('/:id', async (req, res) => {
         
         console.log('Datos recibidos para actualizar modalidad:', req.body);
 
+        // Obtener la modalidad actual
+        const modalidadActual = await Modalidad.findById(id);
+        if (!modalidadActual) {
+            return res.status(404).json({ message: 'Modalidad no encontrada' });
+        }
+
+        // Si se está cambiando el grupo o el nombre, verificar que no exista la combinación
+        if (grupo && (grupo !== modalidadActual.grupo || nombre !== modalidadActual.nombre)) {
+            const existingModalidadGrupo = await Modalidad.findOne({ 
+                nombre: nombre, 
+                grupo: grupo,
+                _id: { $ne: id } // Excluir la modalidad actual
+            });
+            if (existingModalidadGrupo) {
+                return res.status(400).json({ 
+                    message: `Ya existe otra modalidad "${nombre}" con el grupo "${grupo}"` 
+                });
+            }
+        }
+
         const modalidadActualizada = await Modalidad.findByIdAndUpdate(
             id,
             {
@@ -127,32 +165,55 @@ router.put('/:id', async (req, res) => {
             { new: true, runValidators: true }
         );
 
-        if (!modalidadActualizada) {
-            return res.status(404).json({ message: 'Modalidad no encontrada' });
-        }
-
         console.log('Modalidad actualizada:', modalidadActualizada);
         res.json(modalidadActualizada);
     } catch (error) {
         console.error('Error al actualizar modalidad:', error);
-        res.status(500).json({ message: 'Error al actualizar modalidad', error: error.message });
+        if (error.code === 11000) { // Error de duplicado
+            res.status(400).json({ message: 'Ya existe una modalidad con esa combinación de nombre y grupo' });
+        } else {
+            res.status(500).json({ message: 'Error al actualizar modalidad', error: error.message });
+        }
     }
 });
 
-// Obtener modalidad por grupo (para importación Excel)
+// Obtener modalidades por grupo (para importación Excel)
+// Ahora puede haber múltiples modalidades con el mismo grupo
 router.get('/grupo/:grupo', async (req, res) => {
     try {
         const { grupo } = req.params;
-        const modalidad = await Modalidad.findOne({ grupo: grupo.toUpperCase() });
+        const modalidades = await Modalidad.find({ grupo: grupo.toUpperCase() });
+        
+        if (modalidades.length === 0) {
+            return res.status(404).json({ message: `No se encontraron modalidades con grupo ${grupo}` });
+        }
+        
+        res.json(modalidades);
+    } catch (error) {
+        console.error('Error al buscar modalidades por grupo:', error);
+        res.status(500).json({ message: 'Error al buscar modalidades por grupo', error: error.message });
+    }
+});
+
+// Nueva ruta: Obtener modalidad específica por nombre y grupo
+router.get('/buscar/:nombre/:grupo', async (req, res) => {
+    try {
+        const { nombre, grupo } = req.params;
+        const modalidad = await Modalidad.findOne({ 
+            nombre: nombre, 
+            grupo: grupo.toUpperCase() 
+        });
         
         if (!modalidad) {
-            return res.status(404).json({ message: `No se encontró modalidad con grupo ${grupo}` });
+            return res.status(404).json({ 
+                message: `No se encontró modalidad "${nombre}" con grupo "${grupo}"` 
+            });
         }
         
         res.json(modalidad);
     } catch (error) {
-        console.error('Error al buscar modalidad por grupo:', error);
-        res.status(500).json({ message: 'Error al buscar modalidad por grupo', error: error.message });
+        console.error('Error al buscar modalidad por nombre y grupo:', error);
+        res.status(500).json({ message: 'Error al buscar modalidad', error: error.message });
     }
 });
 
