@@ -86,6 +86,46 @@ useEffect(() => {
   }
 }, [modalidades]);
 
+// Mantener currentPage dentro del rango válido cuando cambian datos o filtros.
+// Este useEffect se declara siempre (no condicional) para cumplir las reglas de hooks.
+useEffect(() => {
+  const count = alumnos.filter(alumno => {
+    if (!alumno) return false;
+
+    // Filtro por estado activo/inactivo
+    if (filtroEstado === 'activos' && alumno.activo === false) return false;
+    if (filtroEstado === 'inactivos' && alumno.activo !== false) return false;
+
+    // Filtro por modalidad
+  const modalidadId = alumno.id_modalidad ? (alumno.id_modalidad._id || alumno.id_modalidad) : null;
+    const modalidadNombre = obtenerNombreModalidad(modalidadId);
+    if (filtroModalidad && modalidadNombre !== filtroModalidad) return false;
+
+    // Filtro por estado de pagos
+    if (filtroEstadoPago === 'al-dia' && alumno.estado_pago !== 'verde') return false;
+    if (filtroEstadoPago === 'retrasados' && alumno.estado_pago !== 'rojo') return false;
+
+    const modalidad = modalidadNombre?.toLowerCase() || "";
+    const horario = modalidadId ? obtenerHorarioModalidad(modalidadId)?.toLowerCase() || "" : "";
+    const grupo = obtenerGrupoModalidad(modalidadId)?.toLowerCase() || "";
+    const fechaInscripcion = new Date(alumno.fecha_inscripcion).toLocaleDateString('es-MX') || "";
+
+    return (
+        alumno.nombre?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        alumno.matricula?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        modalidad.includes(searchTerm.toLowerCase()) ||
+        horario.includes(searchTerm.toLowerCase()) ||
+        grupo.includes(searchTerm.toLowerCase()) ||
+        fechaInscripcion.includes(searchTerm.toLowerCase())
+    );
+  }).length;
+
+  const tp = Math.ceil(count / itemsPerPage) || 1;
+  if (currentPage > tp) {
+    setCurrentPage(tp);
+  }
+}, [alumnos, modalidades, filtroEstado, filtroModalidad, filtroEstadoPago, searchTerm, itemsPerPage]);
+
 // Efecto para manejar el scroll del body cuando el modal esté abierto
 useEffect(() => {
     if (mostrarImportModal || mostrarModal || mostrarPagoModal) {
@@ -442,11 +482,31 @@ useEffect(() => {
     );
   });
 
-  // Calculate total pages
-  const totalPages = Math.ceil(alumnosFiltrados.length / itemsPerPage);
+  // Order alumnos: inactivos primero, luego por estado de pago (rojo, amarillo, verde)
+  const alumnosOrdenados = alumnosFiltrados.slice().sort((a, b) => {
+    // Inactivos primero
+    const aInactivo = a.activo === false;
+    const bInactivo = b.activo === false;
+    if (aInactivo && !bInactivo) return -1;
+    if (bInactivo && !aInactivo) return 1;
 
-  // Slice alumnosFiltrados for pagination
-  const alumnosPaginados = alumnosFiltrados.slice(
+    // Luego por prioridad de estado de pago
+    const prioridad = { rojo: 0, amarillo: 1, verde: 2 };
+    const pa = prioridad[a.estado_pago || 'verde'];
+    const pb = prioridad[b.estado_pago || 'verde'];
+    if (pa !== pb) return pa - pb;
+
+    // Finalmente, por nombre como desempate
+    return (a.nombre || '').localeCompare(b.nombre || '');
+  });
+
+  // Calculate total pages based on ordered list
+  const totalPages = Math.ceil(alumnosOrdenados.length / itemsPerPage) || 1;
+
+  // (currentPage se ajusta desde el useEffect que calcula 'tp' más arriba)
+
+  // Slice alumnosOrdenados for pagination
+  const alumnosPaginados = alumnosOrdenados.slice(
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage
   );
@@ -589,9 +649,25 @@ return (
                     style={{ width: '140px', minWidth: '100px', backgroundColor: '#f0f9ff', border: '2px solid #3b82f6', borderRadius: '6px', padding: '5px', fontSize: '14px' }}
                   >
                     <option value="">Todas las modalidades</option>
-                    {Array.from(new Set(modalidades.map(m => m.nombre))).map(nombre => (
-                      <option key={nombre} value={nombre}>{nombre}</option>
-                    ))}
+                      {(() => {
+                        const nombres = Array.from(new Set(modalidades.map(m => m.nombre))).filter(Boolean);
+                        const seleccionadoNoDisponible = filtroModalidad && filtroModalidad !== '' && !nombres.includes(filtroModalidad);
+                        return (
+                          <>
+                            {nombres.map(nombre => (
+                              <option key={nombre} value={nombre}>{nombre}</option>
+                            ))}
+                            {/* Si el filtro actual no está en la lista de nombres, incluirlo para preservarlo */}
+                            {seleccionadoNoDisponible && (
+                              <option value={filtroModalidad}>{filtroModalidad}</option>
+                            )}
+                            {/* Indicador visual cuando la opción seleccionada no está disponible */}
+                            {seleccionadoNoDisponible && (
+                              <option disabled style={{ color: '#888' }}>--- (No disponible en la vista actual) ---</option>
+                            )}
+                          </>
+                        );
+                      })()}
                   </select>
                   {/* Filtro por estado de pagos */}
                   <select
@@ -632,46 +708,7 @@ return (
               </div>
             </div>
             
-            {/* Pagination controls */}
-            <div className="pagination-controls" style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '10px',
-              marginTop: '10px', // Add spacing to separate from other elements
-              justifyContent: 'center', // Center align the controls
-            }}>
-              <button
-                onClick={handlePreviousPage}
-                disabled={currentPage === 1}
-                style={{
-                  padding: '8px 12px',
-                  border: '1px solid #ccc',
-                  borderRadius: '4px',
-                  backgroundColor: currentPage === 1 ? '#e0e0e0' : '#3b82f6',
-                  color: currentPage === 1 ? '#888' : '#fff',
-                  cursor: currentPage === 1 ? 'not-allowed' : 'pointer',
-                }}
-              >
-                Anterior
-              </button>
-              <span style={{ fontSize: '14px', fontWeight: 'bold' }}>
-                Página {currentPage} de {totalPages}
-              </span>
-              <button
-                onClick={handleNextPage}
-                disabled={currentPage === totalPages}
-                style={{
-                  padding: '8px 12px',
-                  border: '1px solid #ccc',
-                  borderRadius: '4px',
-                  backgroundColor: currentPage === totalPages ? '#e0e0e0' : '#3b82f6',
-                  color: currentPage === totalPages ? '#888' : '#fff',
-                  cursor: currentPage === totalPages ? 'not-allowed' : 'pointer',
-                }}
-              >
-                Siguiente
-              </button>
-            </div>
+            {/* Pagination controls moved to bottom */}
             <div className="alumno-scrollable-table">
                 <div className="corte-dia-section">
                     <div>
@@ -685,12 +722,6 @@ return (
                   />
                   <button onClick={toggleCorte} style={{ padding: '5px 15px' }}>
                     {mostrarCorte ? '� Ocultar corte' : '�📊 Ver corte'}
-                  </button>
-                  <button 
-                    onClick={() => setFechaCorte(new Date().toISOString().split('T')[0])}
-                    style={{ padding: '5px 15px', backgroundColor: '#10b981', color: 'white', border: 'none', borderRadius: '4px' }}
-                  >
-                    📅 Hoy
                   </button>
                   <select 
                     value={filtroEstado} 
@@ -774,13 +805,7 @@ return (
                             </tr>
                         </thead>
                         <tbody>
-                            {alumnosPaginados
-                              .sort((a, b) => {
-                                // Ordenar: rojos primero, luego amarillos, luego verdes
-                                const prioridad = { rojo: 0, amarillo: 1, verde: 2 };
-                                return prioridad[a.estado_pago || 'verde'] - prioridad[b.estado_pago || 'verde'];
-                              })
-                              .map((alumno) => (
+                            {alumnosPaginados.map((alumno) => (
                                 <tr key={alumno._id}>
                                     <td>
                                       <EstadoPagoIndicador 
@@ -881,6 +906,46 @@ return (
                 ) : (
                     <p className="no-alumnos-message">No se encontraron resultados.</p>
                 )}
+            </div>
+            {/* Pagination controls (moved to bottom) */}
+            <div className="pagination-controls" style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px',
+              marginTop: '10px',
+              justifyContent: 'center',
+            }}>
+              <button
+                onClick={handlePreviousPage}
+                disabled={currentPage === 1}
+                style={{
+                  padding: '8px 12px',
+                  border: '1px solid #ccc',
+                  borderRadius: '4px',
+                  backgroundColor: currentPage === 1 ? '#e0e0e0' : '#3b82f6',
+                  color: currentPage === 1 ? '#888' : '#fff',
+                  cursor: currentPage === 1 ? 'not-allowed' : 'pointer',
+                }}
+              >
+                Anterior
+              </button>
+              <span style={{ fontSize: '14px', fontWeight: 'bold' }}>
+                Página {currentPage} de {totalPages}
+              </span>
+              <button
+                onClick={handleNextPage}
+                disabled={currentPage === totalPages}
+                style={{
+                  padding: '8px 12px',
+                  border: '1px solid #ccc',
+                  borderRadius: '4px',
+                  backgroundColor: currentPage === totalPages ? '#e0e0e0' : '#3b82f6',
+                  color: currentPage === totalPages ? '#888' : '#fff',
+                  cursor: currentPage === totalPages ? 'not-allowed' : 'pointer',
+                }}
+              >
+                Siguiente
+              </button>
             </div>
             
             {mostrarModal && (
