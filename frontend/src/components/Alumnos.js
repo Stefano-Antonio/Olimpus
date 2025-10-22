@@ -22,6 +22,7 @@ const Alumnos = () => {
   const [pagosCorte, setPagosCorte] = useState([]);
   const [totalCorte, setTotalCorte] = useState(0);
   const [resumenCorte, setResumenCorte] = useState({});
+  const [mostrarCorte, setMostrarCorte] = useState(false);
   // Estados para importación de Excel
   const [mostrarImportModal, setMostrarImportModal] = useState(false);
   const [archivoExcel, setArchivoExcel] = useState(null);
@@ -130,9 +131,25 @@ useEffect(() => {
       } else {
         toast.info(`No se encontraron pagos para el ${fechaFormateada}`);
       }
+      // Mostrar resultados al obtenerlos
+      setMostrarCorte(true);
     } catch (error) {
       console.error("Error al obtener el corte:", error);
       toast.error("Error al obtener el corte del día");
+    }
+  };
+
+  const toggleCorte = async () => {
+    if (!mostrarCorte) {
+      // Si no está visible, obtener y mostrar
+      await obtenerCorteDelDia();
+      setMostrarCorte(true);
+    } else {
+      // Si ya está visible, ocultar y limpiar los datos
+      setMostrarCorte(false);
+      setPagosCorte([]);
+      setTotalCorte(0);
+      setResumenCorte({});
     }
   };
   
@@ -655,9 +672,8 @@ return (
                 Siguiente
               </button>
             </div>
-            {alumnosPaginados.length > 0 ? (
-                <div className="alumno-scrollable-table">
-                    <div className="corte-dia-section">
+            <div className="alumno-scrollable-table">
+                <div className="corte-dia-section">
                     <div>
                 <h4>Corte del día - {fechaCorte ? new Date(fechaCorte + 'T00:00:00').toLocaleDateString('es-MX') : 'Hoy'}</h4>
                 <div style={{ display: 'flex', gap: '10px', alignItems: 'center', marginBottom: '10px' }}>
@@ -667,8 +683,8 @@ return (
                       onChange={(e) => setFechaCorte(e.target.value)}
                       style={{ padding: '5px' }}
                   />
-                  <button onClick={obtenerCorteDelDia} style={{ padding: '5px 15px' }}>
-                    📊 Ver corte
+                  <button onClick={toggleCorte} style={{ padding: '5px 15px' }}>
+                    {mostrarCorte ? '� Ocultar corte' : '�📊 Ver corte'}
                   </button>
                   <button 
                     onClick={() => setFechaCorte(new Date().toISOString().split('T')[0])}
@@ -740,6 +756,8 @@ return (
                 )}
                 </div>
                 </div>
+
+                {alumnosPaginados.length > 0 ? (
                     <table className="alumnos-table">
                         <thead>
                             <tr>
@@ -749,7 +767,7 @@ return (
                                 <th>Modalidad</th>
                                 <th>Entrenador</th>
                                 <th>F. Inscripción</th>
-                                <th>Pend.</th>
+                                <th>Meses Pend.</th>
                                 <th>Meses inscritos</th>
                                 <th>Deuda</th>
                                 <th>Acciones</th>
@@ -860,10 +878,10 @@ return (
                             ))}
                         </tbody>
                     </table>
-                </div>
-            ) : (
-                <p className="no-alumnos-message">No se encontraron resultados.</p>
-            )}
+                ) : (
+                    <p className="no-alumnos-message">No se encontraron resultados.</p>
+                )}
+            </div>
             
             {mostrarModal && (
                 <div className="modal">
