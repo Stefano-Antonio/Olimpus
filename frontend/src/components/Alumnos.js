@@ -60,8 +60,30 @@ const fetchData = async () => {
 
 
 useEffect(() => {
-    fetchData();
-}, []);
+    const alumnosGuardados = localStorage.getItem('alumnos');
+    const modalidadesGuardadas = localStorage.getItem('modalidades');
+
+    if (alumnosGuardados && modalidadesGuardadas) {
+      setAlumnos(JSON.parse(alumnosGuardados));
+      setModalidades(JSON.parse(modalidadesGuardadas));
+      setLoading(false);
+    } else {
+      fetchData();
+    }
+  }, []);
+
+// Add a new useEffect to save alumnos and modalidades to local storage whenever they change
+useEffect(() => {
+  if (alumnos.length > 0) {
+    localStorage.setItem('alumnos', JSON.stringify(alumnos));
+  }
+}, [alumnos]);
+
+useEffect(() => {
+  if (modalidades.length > 0) {
+    localStorage.setItem('modalidades', JSON.stringify(modalidades));
+  }
+}, [modalidades]);
 
 // Efecto para manejar el scroll del body cuando el modal esté abierto
 useEffect(() => {
@@ -425,26 +447,26 @@ useEffect(() => {
     }
   };
 
-  const handlePagoEfectivoOTransferencia = async (alumno, costo) => {
+  const handlePagoEfectivoOTransferencia = async (alumnoParam, costo) => {
     try {
+    const id = alumnoParam._id;
+    console.log('alumnoid:', id);
+    if (!id) {
+      toast.error("No se pudo obtener el ID del alumno. Intente nuevamente.");
+      return;
+    }
 
-        const id= alumno._id;
-        console.log('alumnoid:',id)
-        if (!id) {
-            toast.error("No se pudo obtener el ID del alumno. Intente nuevamente.");
-            return;
-        }
+    const meses = alumnoParam.mesesAPagar || alumnoSeleccionado?.mesesAPagar || 1;
+    if (!meses || isNaN(Number(meses))) {
+      toast.error("Seleccione la cantidad de meses a pagar.");
+      return;
+    }
 
-        if (!alumnoSeleccionado?.mesesAPagar) {
-            toast.error("Seleccione la cantidad de meses a pagar.");
-            return;
-        }
-        
-        await sumarPagosRealizados(id, alumno.mesesAPagar || 1, costo);
+    await sumarPagosRealizados(id, Number(meses), costo);
         await fetchData(); // recargar la lista de alumnos
 
-        toast.success("Pago registrado con éxito");
-        setMostrarModal(false); // Cierra el modal
+  toast.success("Pago registrado con éxito");
+  setMostrarPagoModal(false); // Cierra el modal de pago
     } catch (error) {
         console.error("Error al registrar el alumno:", error);
         toast.error("Hubo un error al registrar el alumno");
@@ -795,12 +817,23 @@ return (
                                     </td>
 
                                     <td>
-                                        <button
-                                            className="icon-button"
-                                            onClick={() => {
-                                                setAlumnoSeleccionado(alumno);
-                                                setMostrarPagoModal(true);
-                                            }}
+                    <button
+                      className="icon-button"
+                      onClick={() => {
+                        // Inicializar estado del modal de pago con valores calculados
+                        const deudaTotal = parseFloat(alumno.deuda_total || alumno.deuda_total_con_recargos || 0) || 0;
+                        const pagoApagar = parseFloat(alumno.pago_apagar || alumno.pagos_realizados || 0) || 0;
+                        const costoPorMesFallback = modalidades.find(m => (m._id === (alumno.id_modalidad?._id || alumno.id_modalidad)))?.costo || 0;
+                        const costoPorMes = deudaTotal > 0 && pagoApagar > 0 ? deudaTotal / pagoApagar : costoPorMesFallback;
+
+                        setAlumnoSeleccionado({
+                          ...alumno,
+                          mesesAPagar: undefined,
+                          costoPorMes: isFinite(costoPorMes) ? Number(costoPorMes) : Number(costoPorMesFallback),
+                          montoPersonalizado: undefined,
+                        });
+                        setMostrarPagoModal(true);
+                      }}
                                             disabled={alumno.activo === false}
                                             title={alumno.activo === false ? "No se pueden registrar pagos en alumnos inactivos" : "Registrar pago"}
                                         >
@@ -850,25 +883,32 @@ return (
 
                         <p><strong>Deuda total:</strong> ${alumnoSeleccionado?.deuda_total ? alumnoSeleccionado.deuda_total.toFixed(2) : '0.00'}</p>
 
-                        <select
-                            onChange={(e) => {
-                                const meses = parseInt(e.target.value, 10);
-                                if (isNaN(meses) || meses === 0) {
-                                    return;
-                                }
-                                
-                                const costoPorMes = alumnoSeleccionado?.deuda_total / alumnoSeleccionado?.pago_apagar;
+            <select
+              onChange={(e) => {
+                const meses = parseInt(e.target.value, 10);
+                if (isNaN(meses) || meses === 0) {
+                  // Clear selection
+                  setAlumnoSeleccionado(prev => ({ ...prev, mesesAPagar: undefined, montoPersonalizado: undefined }));
+                  return;
+                }
 
-                                setAlumnoSeleccionado((prev) => ({
-                                    ...prev,
-                                    mesesAPagar: meses,
-                                    costoPorMes: alumnoSeleccionado?.deuda_total > 0 
-                                        ? costoPorMes 
-                                        : modalidades.find(m => m._id === alumnoSeleccionado?.id_modalidad)?.costo || 0,
-                                    montoPersonalizado: undefined // Reset el monto personalizado cuando cambia la selección
-                                }));
-                            }}
-                        >
+                setAlumnoSeleccionado(prev => {
+                  const deudaTotal = parseFloat(prev?.deuda_total || prev?.deuda_total_con_recargos || 0) || 0;
+                  const pagoApagar = parseFloat(prev?.pago_apagar || prev?.pagos_realizados || 0) || 0;
+                  const modalidadCosto = modalidades.find(m => (m._id === (prev?.id_modalidad?._id || prev?.id_modalidad)))?.costo || 0;
+
+                  // If deudaTotal and pagoApagar exist, use deudaTotal/pagoApagar, otherwise fallback to modalidad costo
+                  const costoPorMesCalc = deudaTotal > 0 && pagoApagar > 0 ? deudaTotal / pagoApagar : modalidadCosto;
+
+                  return {
+                    ...prev,
+                    mesesAPagar: meses,
+                    costoPorMes: isFinite(costoPorMesCalc) ? Number(costoPorMesCalc) : Number(modalidadCosto),
+                    montoPersonalizado: undefined // Reset el monto personalizado cuando cambia la selección
+                  };
+                });
+              }}
+            >
                             <option value="">Seleccione meses</option>
                             <option value="11">Anualidad</option>
                             {Array.from({ length: Math.max(alumnoSeleccionado?.pago_apagar || 0, 12) }, (_, i) => i + 1).map((mes) => (
@@ -878,29 +918,29 @@ return (
                             ))}
                         </select>
 
-                        {alumnoSeleccionado?.mesesAPagar && (
+                {alumnoSeleccionado?.mesesAPagar && (
                             <>
-                                <p><strong>Costo por mes:</strong> ${alumnoSeleccionado?.costoPorMes ? alumnoSeleccionado.costoPorMes.toFixed(2) : '0.00'}</p>
-                                <p><strong>Costo calculado:</strong> ${(alumnoSeleccionado.costoPorMes * alumnoSeleccionado.mesesAPagar).toFixed(2)}</p>
+                <p><strong>Costo por mes:</strong> ${Number(alumnoSeleccionado?.costoPorMes || 0).toFixed(2)}</p>
+                <p><strong>Costo calculado:</strong> ${(Number(alumnoSeleccionado?.costoPorMes || 0) * Number(alumnoSeleccionado?.mesesAPagar || 0)).toFixed(2)}</p>
                                 
                                 <div style={{ margin: '15px 0' }}>
                                     <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>
                                         💰 Monto a cobrar (editable):
                                     </label>
-                                    <input
-                                        type="number"
-                                        step="0.01"
-                                        min="0"
-                                        value={alumnoSeleccionado.montoPersonalizado !== undefined ? 
-                                               alumnoSeleccionado.montoPersonalizado : 
-                                               (alumnoSeleccionado.costoPorMes * alumnoSeleccionado.mesesAPagar).toFixed(2)}
-                                        onChange={(e) => {
-                                            const nuevoMonto = parseFloat(e.target.value) || 0;
-                                            setAlumnoSeleccionado(prev => ({
-                                                ...prev,
-                                                montoPersonalizado: nuevoMonto
-                                            }));
-                                        }}
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={alumnoSeleccionado.montoPersonalizado !== undefined ? 
+                           alumnoSeleccionado.montoPersonalizado : 
+                           (Number(alumnoSeleccionado.costoPorMes || 0) * Number(alumnoSeleccionado.mesesAPagar || 0)).toFixed(2)}
+                      onChange={(e) => {
+                        const nuevoMonto = parseFloat(e.target.value);
+                        setAlumnoSeleccionado(prev => ({
+                          ...prev,
+                          montoPersonalizado: isNaN(nuevoMonto) ? 0 : nuevoMonto
+                        }));
+                      }}
                                         style={{
                                             width: '100%',
                                             padding: '8px 12px',
