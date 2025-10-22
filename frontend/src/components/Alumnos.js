@@ -750,7 +750,7 @@ return (
                                 <th>Entrenador</th>
                                 <th>F. Inscripción</th>
                                 <th>Pend.</th>
-                                <th>Pagos</th>
+                                <th>Meses inscritos</th>
                                 <th>Deuda</th>
                                 <th>Acciones</th>
                             </tr>
