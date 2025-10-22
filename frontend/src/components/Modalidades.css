@@ -59,13 +59,13 @@ body, html {
   box-shadow: 0 0 20px var(--shadow);
   position: relative;
   flex-shrink: 0;
-}
-
-.pilar:first-of-type {
-  border-right: 3px solid rgba(255, 255, 255, 0.2);
-}
-
-.pilar:last-of-type {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  z-index: 50;
+  margin-bottom: 20px;
+  display: flex;
+  justify-content: flex-start;
   border-left: 3px solid rgba(255, 255, 255, 0.2);
 }
 
@@ -86,28 +86,26 @@ body, html {
   min-height: calc(100vh - 40px);
 }
 
-.top-left {
-  position: fixed;
-  top: 20px;
-  left: 20px;
-  z-index: 9999;
-  margin-bottom: 20px;
+.top-right {
+  /* ahora será absoluta relativa al .materia-container */
+  position: absolute;
+  top: 20px; /* coincide con el padding-top de .materia-container */
+  right: 20px;
+  z-index: 50;
   display: flex;
-  justify-content: flex-start;
+  align-items: center;
 }
 
-.back-button {
-  background: var(--primary-color);
-  color: var(--white);
-  border: none;
-  padding: 10px 24px;
+.top-right .btn-agregar-modalidad {
+  padding: 10px 18px;
   border-radius: 8px;
-  cursor: pointer;
-  font-weight: 600;
-  font-size: 14px;
-  transition: all 0.3s ease;
-  box-shadow: 0 4px 12px var(--shadow);
 }
+
+/* Asegurar que .materia-container sea el contenedor relativo para posicionamiento */
+.materia-container {
+  position: relative;
+}
+
 
 .back-button:hover {
   background: var(--primary-dark);
@@ -292,9 +290,10 @@ body, html {
 }
 
 .button {
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
+  color: #ffffff;
+  border: 2px solid #065f46;
   padding: 12px 35px;
-  background: var(--secondary-color);
-  color: var(--white);
   border: none;
   border-radius: 8px;
   font-size: 16px;
@@ -378,6 +377,8 @@ body, html {
   background: linear-gradient(145deg, #ffffff 0%, #f8fafc 100%);
   box-shadow: 0 4px 20px rgba(0,0,0,0.08), 0 1px 3px rgba(0,0,0,0.1);
   border: 1px solid #e2e8f0;
+  /* quitar posible línea blanca a la izquierda causada por borde o subpixel rendering */
+  border-left: 0;
   display: block;
   position: relative;
 }
@@ -393,6 +394,9 @@ body, html {
   table-layout: fixed;
   font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
   font-size: 12px;
+  /* evitar artefactos de subpixel a la izquierda */
+  -webkit-background-clip: padding-box;
+  background-clip: padding-box;
 }
 
 /* ===== ENCABEZADOS REDISEÑADOS ===== */
@@ -439,6 +443,12 @@ body, html {
   color: var(--text-dark);
   word-wrap: break-word;
   position: relative;
+}
+
+/* Asegurar que no haya borde izquierdo visible en la primera celda */
+.modalidades-table td:first-child,
+.modalidades-table th:first-child {
+  border-left: none;
 }
 
 .modalidades-table td:first-child {
@@ -598,6 +608,27 @@ body, html {
   background: linear-gradient(135deg, #047857 0%, #065f46 100%);
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(5, 150, 105, 0.5);
+  border-color: #10b981;
+}
+
+/* Botón agregar modalidad - estilo verde consistente con editar */
+.btn-agregar-modalidad {
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
+  color: #ffffff;
+  border: 2px solid #065f46;
+  border-radius: 8px;
+  padding: 12px 24px;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(5, 150, 105, 0.4);
+  transition: all 0.2s ease;
+}
+
+.btn-agregar-modalidad:hover {
+  background: linear-gradient(135deg, #047857 0%, #065f46 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(5, 150, 105, 0.5);
   border-color: #10b981;
 }
 
